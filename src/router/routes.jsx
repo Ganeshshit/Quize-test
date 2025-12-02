@@ -21,6 +21,7 @@ import StudentQuizList from "../pages/student/QuizList";
 import StudentHistory from "../pages/student/History";
 import StudentProfile from "../pages/student/Profile";
 import StudentLayout from "../components/Layout/StudentLayout";
+import QuizAttempt from "../pages/student/QuizAttempt";
 
 export const routes = [
     // ------------------- AUTH --------------------
@@ -124,7 +125,20 @@ export const routes = [
                 element: <StudentProfile />,
                 protected: true,
                 roles: ["student", "admin"],
-            },
+            }, 
         ],
+        
+    },
+    {
+        path: "/student/attempts",
+        element: <QuizAttempt />,
+        protected: true,
+        roles: ["student", "admin"],
     },
 ];
+
+
+
+
+
+
