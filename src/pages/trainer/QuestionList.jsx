@@ -32,7 +32,7 @@ const QuestionList = () => {
   const uniqueSubjects = [...new Set(questions.map(q => q.subject?.name).filter(Boolean))];
   const uniqueTypes = [...new Set(questions.map(q => q.type).filter(Boolean))];
 
-  // Load questions from backend
+  // Load questions from backend - FIXED TO FETCH ALL PAGES
   useEffect(() => {
     loadQuestions();
   }, []);
@@ -42,8 +42,29 @@ const QuestionList = () => {
       setLoading(true);
       setError("");
 
-      const res = await questionsAPI.getAll();
-      setQuestions(res.data || []);
+      // Fetch all questions by requesting a large limit or fetching all pages
+      const allQuestions = [];
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const res = await questionsAPI.getAll({ page: currentPage, limit: 100 });
+
+        if (res.data && res.data.length > 0) {
+          allQuestions.push(...res.data);
+
+          // Check if there are more pages
+          if (res.pagination && res.pagination.hasNextPage) {
+            currentPage++;
+          } else {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setQuestions(allQuestions);
     } catch (err) {
       console.error(err);
       setError("Failed to load questions");
@@ -150,8 +171,8 @@ const QuestionList = () => {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all font-medium ${showFilters
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-slate-700 border-slate-300 hover:border-blue-400"
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white text-slate-700 border-slate-300 hover:border-blue-400"
               }`}
           >
             <Filter className="w-5 h-5" />
