@@ -5,7 +5,6 @@ export const quizzesAPI = {
     // -----------------------------------------
     // QUIZ CRUD
     // -----------------------------------------
-
     // Get all quizzes with optional params
     getAll: async (params = {}) => {
         const response = await axiosInstance.get('/quizzes', { params });
@@ -68,7 +67,7 @@ export const quizzesAPI = {
     },
 
     // -----------------------------------------
-    // QUIZ → QUESTION MANAGEMENT (NEW)
+    // QUIZ → QUESTION MANAGEMENT
     // -----------------------------------------
 
     // Get all questions attached to a quiz
@@ -111,6 +110,7 @@ export const quizzesAPI = {
 
         return response.data;
     },
+
     manualAddQuestion: async (quizId, questionData) => {
         const response = await axiosInstance.post(
             `/quizzes/${quizId}/questions/manual`,
@@ -118,4 +118,84 @@ export const quizzesAPI = {
         );
         return response.data;
     },
+
+    // -----------------------------------------
+    // STUDENT ENROLLMENT & QUIZ FLOW
+    // -----------------------------------------
+
+    // Student → Enroll in quiz
+    enroll: async (quizId) => {
+        const response = await axiosInstance.post(`/quizzes/${quizId}/enroll`);
+        return response.data;
+    },
+
+    // Get all quizzes student is enrolled in
+    getEnrolled: async () => {
+        const response = await axiosInstance.get("/quizzes/enrolled");
+        return response.data;
+    },
+
+    // Student → Start quiz (creates attempt)
+    start: async (quizId) => {
+        const response = await axiosInstance.post(`/quizzes/${quizId}/start`);
+        return response.data;
+    },
+
+    // Get attempt by ID
+    getAttemptById: async (attemptId) => {
+        const response = await axiosInstance.get(`/quizzes/attempts/${attemptId}`);
+        return response.data;
+    },
+
+    // Submit quiz answers
+    submit: async (attemptId, data) => {
+        const response = await axiosInstance.post(
+            `/quizzes/${attemptId}/submit`,
+            data
+        );
+        return response.data;
+    },
+
+    // Get all attempts for a quiz (student)
+    getMyAttemptsForQuiz: async (quizId) => {
+        const response = await axiosInstance.get(`/quizzes/${quizId}/my-attempts`);
+        return response.data;
+    },
+    // Get single attempt detail (student)
+    getMyAttemptDetail: async (attemptId) => {
+        const response = await axiosInstance.get(`/quizzes/attempts/${attemptId}`);
+        return response.data;
+    },
+    autoSaveAnswers: async (attemptId, data) => {
+        const response = await axiosInstance.post(
+            `/quizzes/${attemptId}/auto-save`,
+            data
+        );
+        return response.data;
+    },
+  
+    getEnrollments: async (quizId, params) => {
+        const response = await axiosInstance.get(`/quizzes/${quizId}/enrollments`, {
+            params
+        });
+        return response.data;
+    },
+    getAttempts: async (quizId, params) => {
+        const response = await axiosInstance.get(`/quizzes/${quizId}/attempts`, {
+            params
+        });
+        return response.data;
+    },
+    getAttemptDetails: async (quizId, attemptId) => {
+        const response = await axiosInstance.get(
+            `/quizzes/${quizId}/attempts/${attemptId}/details`
+        );
+        return response.data;
+    },
+    getStatistics: async (quizId) => {
+        const response = await axiosInstance.get(`/quizzes/${quizId}/statistics`);
+        return response.data;
+    },
+   
+   
 };

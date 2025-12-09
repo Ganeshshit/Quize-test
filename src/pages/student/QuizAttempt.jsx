@@ -1,547 +1,645 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Clock, CheckCircle, Circle, AlertCircle, BookOpen, BarChart3 } from "lucide-react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { quizzesAPI } from "../../api/quizzes.api";
+import { toast } from "react-hot-toast";
 
 const QuizAttempt = () => {
+  const { attemptId } = useParams();
+  const navigate = useNavigate();
+
+  // State management
   const [attempt, setAttempt] = useState(null);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
-  const [currentSection, setCurrentSection] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [warningShown, setWarningShown] = useState(false);
+  const [showNavigator, setShowNavigator] = useState(false);
+  const [questionTimeTracking, setQuestionTimeTracking] = useState({});
 
-  const questionRefs = useRef({});
+  // Refs
+  const timerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+  const autoSaveIntervalRef = useRef(null);
+  const questionStartTimeRef = useRef(Date.now());
+  const visibilityChangeCountRef = useRef(0);
 
-  // Comprehensive dummy data
-  const mockAttempt = {
-    attemptId: "ATT-2024-001",
-    quizTitle: "Java Spring Boot Certification Assessment",
-    description: "Comprehensive evaluation covering Core Java, Spring Framework, and RESTful API development",
-    organization: "TechCorp Learning Academy",
-    durationSeconds: 3600, // 60 minutes
-    totalMarks: 100,
-    passingMarks: 60,
-    instructor: "Dr. Sarah Johnson",
-    sections: [
-      {
-        id: "s1",
-        name: "Core Java Fundamentals",
-        description: "Basic concepts and syntax",
-        questions: [
-          {
-            _id: "q1",
-            prompt: "Which company originally developed the Java programming language?",
-            type: "mcq_single",
-            marks: 5,
-            difficulty: "easy",
-            choices: [
-              { id: "c1", text: "Microsoft Corporation" },
-              { id: "c2", text: "Sun Microsystems" },
-              { id: "c3", text: "Oracle Corporation" },
-              { id: "c4", text: "IBM" }
-            ],
-          },
-          {
-            _id: "q2",
-            prompt: "Which of the following are key features of Java?",
-            type: "mcq_multi",
-            marks: 10,
-            difficulty: "medium",
-            choices: [
-              { id: "c1", text: "Platform Independent" },
-              { id: "c2", text: "Object Oriented" },
-              { id: "c3", text: "Multi-threaded" },
-              { id: "c4", text: "Compiled Language Only" },
-              { id: "c5", text: "Automatic Memory Management" }
-            ],
-          },
-          {
-            _id: "q3",
-            prompt: "What is the default value of a boolean variable in Java?",
-            type: "mcq_single",
-            marks: 5,
-            difficulty: "easy",
-            choices: [
-              { id: "c1", text: "true" },
-              { id: "c2", text: "false" },
-              { id: "c3", text: "null" },
-              { id: "c4", text: "0" }
-            ],
-          },
-        ]
-      },
-      {
-        id: "s2",
-        name: "Object-Oriented Programming",
-        description: "OOP principles and design patterns",
-        questions: [
-          {
-            _id: "q4",
-            prompt: "Which of the following are pillars of Object-Oriented Programming?",
-            type: "mcq_multi",
-            marks: 10,
-            difficulty: "medium",
-            choices: [
-              { id: "c1", text: "Encapsulation" },
-              { id: "c2", text: "Inheritance" },
-              { id: "c3", text: "Polymorphism" },
-              { id: "c4", text: "Compilation" },
-              { id: "c5", text: "Abstraction" }
-            ],
-          },
-          {
-            _id: "q5",
-            prompt: "Which keyword is used to prevent method overriding in Java?",
-            type: "mcq_single",
-            marks: 5,
-            difficulty: "medium",
-            choices: [
-              { id: "c1", text: "static" },
-              { id: "c2", text: "final" },
-              { id: "c3", text: "abstract" },
-              { id: "c4", text: "const" }
-            ],
-          },
-        ]
-      },
-      {
-        id: "s3",
-        name: "Spring Framework",
-        description: "Spring Boot and dependency injection",
-        questions: [
-          {
-            _id: "q6",
-            prompt: "What is the primary purpose of the @Autowired annotation in Spring?",
-            type: "mcq_single",
-            marks: 5,
-            difficulty: "medium",
-            choices: [
-              { id: "c1", text: "To define a bean" },
-              { id: "c2", text: "To inject dependencies automatically" },
-              { id: "c3", text: "To configure application properties" },
-              { id: "c4", text: "To handle HTTP requests" }
-            ],
-          },
-          {
-            _id: "q7",
-            prompt: "Which of the following are valid Spring Bean scopes?",
-            type: "mcq_multi",
-            marks: 10,
-            difficulty: "hard",
-            choices: [
-              { id: "c1", text: "Singleton" },
-              { id: "c2", text: "Prototype" },
-              { id: "c3", text: "Request" },
-              { id: "c4", text: "Static" },
-              { id: "c5", text: "Session" }
-            ],
-          },
-          {
-            _id: "q8",
-            prompt: "Which annotation is used to create a RESTful controller in Spring Boot?",
-            type: "mcq_single",
-            marks: 5,
-            difficulty: "easy",
-            choices: [
-              { id: "c1", text: "@Controller" },
-              { id: "c2", text: "@RestController" },
-              { id: "c3", text: "@Service" },
-              { id: "c4", text: "@Component" }
-            ],
-          },
-        ]
-      },
-      {
-        id: "s4",
-        name: "Advanced Topics",
-        description: "Collections, streams, and best practices",
-        questions: [
-          {
-            _id: "q9",
-            prompt: "Which collection interface does NOT allow duplicate elements?",
-            type: "mcq_single",
-            marks: 5,
-            difficulty: "medium",
-            choices: [
-              { id: "c1", text: "List" },
-              { id: "c2", text: "Set" },
-              { id: "c3", text: "Queue" },
-              { id: "c4", text: "Map" }
-            ],
-          },
-          {
-            _id: "q10",
-            prompt: "Which of the following are thread-safe collections in Java?",
-            type: "mcq_multi",
-            marks: 10,
-            difficulty: "hard",
-            choices: [
-              { id: "c1", text: "ConcurrentHashMap" },
-              { id: "c2", text: "ArrayList" },
-              { id: "c3", text: "CopyOnWriteArrayList" },
-              { id: "c4", text: "HashMap" },
-              { id: "c5", text: "Vector" }
-            ],
-          },
-        ]
-      }
-    ]
-  };
-
-  // Initialize attempt
-  useEffect(() => {
-    setAttempt(mockAttempt);
-    setTimeLeft(mockAttempt.durationSeconds);
+  // Generate client fingerprint
+  const generateFingerprint = useCallback(() => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.fillText('fingerprint', 2, 2);
+    return canvas.toDataURL();
   }, []);
 
-  // Timer with warning
+  const [clientFingerprint] = useState(() => generateFingerprint());
+
+  // ==========================================
+  // SECURITY: Prevent copy-paste
+  // ==========================================
   useEffect(() => {
-    if (timeLeft <= 0) {
-      handleAutoSubmit();
-      return;
-    }
+    const preventCopyPaste = (e) => {
+      if (attempt?.quiz?.antiCheatSettings?.disableCopyPaste) {
+        e.preventDefault();
+        toast.error("Copy-paste is disabled during quiz", { duration: 2000 });
+        return false;
+      }
+    };
 
-    if (timeLeft === 300 && !showWarning) {
-      setShowWarning(true);
-      setTimeout(() => setShowWarning(false), 5000);
-    }
+    document.addEventListener("copy", preventCopyPaste);
+    document.addEventListener("paste", preventCopyPaste);
+    document.addEventListener("cut", preventCopyPaste);
 
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
+    return () => {
+      document.removeEventListener("copy", preventCopyPaste);
+      document.removeEventListener("paste", preventCopyPaste);
+      document.removeEventListener("cut", preventCopyPaste);
+    };
+  }, [attempt]);
+
+  // ==========================================
+  // SECURITY: Prevent right-click
+  // ==========================================
+  useEffect(() => {
+    const preventRightClick = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener("contextmenu", preventRightClick);
+    return () => document.removeEventListener("contextmenu", preventRightClick);
+  }, []);
+
+  // ==========================================
+  // SECURITY: Fullscreen enforcement
+  // ==========================================
+  useEffect(() => {
+    if (!attempt?.quiz?.antiCheatSettings?.enableFullScreen) return;
+
+    const enterFullScreen = async () => {
+      try {
+        await document.documentElement.requestFullscreen();
+        setIsFullScreen(true);
+      } catch (err) {
+        console.error("Fullscreen error:", err);
+        toast.error("Please enable fullscreen mode");
+      }
+    };
+
+    const handleFullScreenChange = () => {
+      const isFS = !!document.fullscreenElement;
+      setIsFullScreen(isFS);
+
+      if (!isFS && !submitting && !warningShown) {
+        setWarningShown(true);
+        toast.error("⚠️ Please return to fullscreen mode!", { duration: 5000 });
+
+        setTimeout(() => {
+          if (!document.fullscreenElement) {
+            enterFullScreen();
+          }
+          setWarningShown(false);
+        }, 3000);
+      }
+    };
+
+    enterFullScreen();
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => { });
+      }
+    };
+  }, [attempt, submitting, warningShown]);
+
+  // ==========================================
+  // SECURITY: Tab switch detection
+  // ==========================================
+  useEffect(() => {
+    if (!attempt?.quiz?.antiCheatSettings?.enableTabSwitchDetection) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        visibilityChangeCountRef.current += 1;
+        const newCount = visibilityChangeCountRef.current;
+        setTabSwitches(newCount);
+
+        const maxSwitches = attempt.quiz.antiCheatSettings.maxTabSwitches || 5;
+
+        if (newCount >= maxSwitches) {
+          toast.error(
+            `⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting...`,
+            { duration: 5000 }
+          );
+          setTimeout(() => handleAutoSubmit(), 2000);
+        } else {
+          toast.warning(
+            `⚠️ Tab switch detected! (${newCount}/${maxSwitches})`,
+            { duration: 3000 }
+          );
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [attempt, tabSwitches]);
+
+  // ==========================================
+  // Track time spent on each question
+  // ==========================================
+  useEffect(() => {
+    questionStartTimeRef.current = Date.now();
+
+    return () => {
+      if (attempt?.selectedQuestions?.[currentQuestionIndex]) {
+        const questionId = attempt.selectedQuestions[currentQuestionIndex].question._id;
+        const timeSpent = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
+
+        setQuestionTimeTracking(prev => ({
+          ...prev,
+          [questionId]: (prev[questionId] || 0) + timeSpent
+        }));
+      }
+    };
+  }, [currentQuestionIndex, attempt]);
+
+  // ==========================================
+  // Auto-save answers periodically
+  // ==========================================
+  useEffect(() => {
+    if (!attemptId || !attempt) return;
+
+    autoSaveIntervalRef.current = setInterval(() => {
+      saveAnswersToServer();
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => {
+      if (autoSaveIntervalRef.current) {
+        clearInterval(autoSaveIntervalRef.current);
+      }
+    };
+  }, [attemptId, attempt, answers]);
+
+  const saveAnswersToServer = async () => {
+    try {
+      const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+        clientTimestamp: new Date().toISOString()
+      }));
+
+      await quizzesAPI.autoSaveAnswers(attemptId, {
+        answers: formattedAnswers,
+        tabSwitches: visibilityChangeCountRef.current
+      });
+
+      console.log("Answers auto-saved successfully");
+    } catch (error) {
+      console.error("Auto-save error:", error);
+    }
+  };
+
+  // ==========================================
+  // Fetch attempt data
+  // ==========================================
+  useEffect(() => {
+    fetchAttempt();
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
+    };
+  }, [attemptId]);
+
+  const fetchAttempt = async () => {
+    try {
+      setLoading(true);
+      const res = await quizzesAPI.getAttemptById(attemptId);
+
+      if (res.success && res.data) {
+        if (!res.data.selectedQuestions || res.data.selectedQuestions.length === 0) {
+          toast.error("Quiz data is incomplete. Please restart the quiz.");
+          navigate("/student/enrolled");
+          return;
+        }
+
+        if (res.data.status !== "in_progress") {
+          toast.info("This quiz has already been submitted");
+          navigate(`/student/result/${attemptId}`);
+          return;
+        }
+
+        setAttempt(res.data);
+
+        // Load saved answers
+        if (res.data.rawAnswers && res.data.rawAnswers.length > 0) {
+          const savedAnswers = {};
+          res.data.rawAnswers.forEach(ans => {
+            savedAnswers[ans.questionId] = ans.answer;
+          });
+          setAnswers(savedAnswers);
+          toast.success("Previous answers restored", { duration: 2000 });
+        }
+
+        // Calculate time remaining
+        const quiz = res.data.quiz;
+        const durationMs = quiz.durationMinutes * 60 * 1000;
+        const elapsed = Date.now() - new Date(res.data.startTime).getTime();
+        const remaining = Math.max(0, durationMs - elapsed);
+
+        setTimeRemaining(Math.floor(remaining / 1000));
+        startTimer();
+      } else {
+        toast.error("Attempt not found");
+        navigate("/student/enrolled");
+      }
+    } catch (error) {
+      console.error("Fetch attempt error:", error);
+      const errorMsg = error?.response?.data?.error || "Failed to load attempt";
+
+      if (error?.response?.data?.timeExpired) {
+        toast.error("Your quiz session has expired");
+        navigate("/student/enrolled");
+      } else {
+        toast.error(errorMsg);
+        navigate("/student/enrolled");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startTimer = () => {
+    timerRef.current = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          handleAutoSubmit();
+          return 0;
+        }
+
+        // Show warnings
+        if (prev === 300) {
+          toast.warning("⏰ 5 minutes remaining!", { duration: 5000 });
+        } else if (prev === 60) {
+          toast.error("⏰ 1 minute remaining!", { duration: 5000 });
+        }
+
+        return prev - 1;
+      });
     }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timeLeft]);
-
-  const handleAutoSubmit = () => {
-    alert("Time's up! Quiz submitted automatically.");
   };
 
-  const formatTime = (sec) => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    return `${h > 0 ? h + ":" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
+  const handleAnswerChange = (questionId, answer) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionId]: answer
+    }));
+    lastActivityRef.current = Date.now();
   };
 
-  const handleSelect = (qId, choiceId, type) => {
-    setAnswers((prev) => {
-      if (type === "mcq_single") return { ...prev, [qId]: choiceId };
+  const handleAutoSubmit = async () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
 
-      const arr = prev[qId] || [];
-      const updated = arr.includes(choiceId)
-        ? arr.filter((i) => i !== choiceId)
-        : [...arr, choiceId];
-      return { ...prev, [qId]: updated };
-    });
+    toast.error("⏰ Time's up! Auto-submitting...", { duration: 5000 });
+    await submitQuiz(true);
+  };
+
+  const submitQuiz = async (isAutoSubmit = false) => {
+    try {
+      setSubmitting(true);
+
+      const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+        clientTimestamp: new Date().toISOString()
+      }));
+
+      const res = await quizzesAPI.submit(attemptId, {
+        answers: formattedAnswers,
+        tabSwitches: visibilityChangeCountRef.current,
+        timeSpentSeconds: Math.floor((Date.now() - new Date(attempt.startTime).getTime()) / 1000),
+        isAutoSubmit,
+        clientFingerprint
+      });
+
+      if (res.success) {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen().catch(() => { });
+        }
+
+        toast.success("✅ Quiz submitted successfully!");
+        navigate(`/student/result/${attemptId}`);
+      } else {
+        toast.error(res.error || "Submission failed");
+      }
+    } catch (error) {
+      console.error("Submit error:", error);
+      const errorMsg = error?.response?.data?.error || "Failed to submit quiz";
+      toast.error(errorMsg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = () => {
-    const unanswered = getAllQuestions().filter(q => !isAnswered(q._id));
+    const unanswered = attempt.selectedQuestions.filter(
+      q => !answers[q.question._id]
+    );
 
     if (unanswered.length > 0) {
-      if (!window.confirm(`You have ${unanswered.length} unanswered question(s). Submit anyway?`)) {
-        return;
-      }
+      const confirm = window.confirm(
+        `You have ${unanswered.length} unanswered question(s). Do you want to submit anyway?`
+      );
+      if (!confirm) return;
     }
 
-    if (!window.confirm("Are you sure you want to submit the quiz? This action cannot be undone.")) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
 
-    alert("Quiz submitted successfully!");
+    submitQuiz(false);
   };
 
-  const getAllQuestions = () => {
-    if (!attempt) return [];
-    return attempt.sections.flatMap(s => s.questions);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isAnswered = (qId) => {
-    return Array.isArray(answers[qId])
-      ? answers[qId].length > 0
-      : Boolean(answers[qId]);
+  const getAnsweredCount = () => {
+    return Object.keys(answers).length;
   };
 
-  const getProgress = () => {
-    const total = getAllQuestions().length;
-    const answered = getAllQuestions().filter(q => isAnswered(q._id)).length;
-    return { answered, total, percentage: (answered / total) * 100 };
-  };
-
-  const scrollToQuestion = (qId) => {
-    questionRefs.current[qId]?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
-  const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case "easy": return "text-green-600 bg-green-50";
-      case "medium": return "text-yellow-600 bg-yellow-50";
-      case "hard": return "text-red-600 bg-red-50";
-      default: return "text-gray-600 bg-gray-50";
-    }
-  };
-
-  if (!attempt) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading assessment...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-xl text-gray-700 font-medium">Loading quiz...</p>
         </div>
       </div>
     );
   }
 
-  const progress = getProgress();
+  if (!attempt || !attempt.selectedQuestions || attempt.selectedQuestions.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
+          <div className="text-6xl mb-4">❌</div>
+          <p className="text-xl text-red-600 font-semibold mb-4">Quiz data not found</p>
+          <p className="text-gray-600 mb-6">The quiz data is incomplete or unavailable.</p>
+          <button
+            onClick={() => navigate("/student/enrolled")}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
+          >
+            Back to Enrolled Quizzes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestion = attempt.selectedQuestions[currentQuestionIndex];
+  const totalQuestions = attempt.selectedQuestions.length;
+
+  if (!currentQuestion || !currentQuestion.question) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <p className="text-xl text-red-600 font-semibold mb-4">Question data is missing</p>
+          <button
+            onClick={() => navigate("/student/enrolled")}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
+          >
+            Back to Enrolled Quizzes
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-
-      {/* Warning Banner */}
-      {showWarning && (
-        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-3 z-50 flex items-center justify-center gap-2">
-          <AlertCircle size={20} />
-          <span className="font-semibold">Warning: Only 5 minutes remaining!</span>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-4">
       {/* Header */}
-      <div className="sticky top-0 bg-white shadow-md z-40 border-b-2 border-blue-600">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <BookOpen className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">{attempt.quizTitle}</h1>
-                <p className="text-sm text-gray-600">{attempt.organization} • {attempt.instructor}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Progress */}
-              <div className="bg-gray-100 px-4 py-2 rounded-lg">
-                <div className="text-xs text-gray-600 mb-1">Progress</div>
-                <div className="flex items-center gap-2">
-                  <BarChart3 size={16} className="text-blue-600" />
-                  <span className="font-bold text-gray-800">{progress.answered}/{progress.total}</span>
-                </div>
-              </div>
-
-              {/* Timer */}
-              <div className={`px-4 py-2 rounded-lg font-semibold shadow-sm ${timeLeft < 300 ? 'bg-red-600 animate-pulse' : 'bg-blue-600'
-                } text-white`}>
-                <div className="flex items-center gap-2">
-                  <Clock size={20} />
-                  <span>{formatTime(timeLeft)}</span>
-                </div>
-              </div>
+      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-800">{attempt.quiz.title}</h1>
+            <div className="flex gap-4 mt-2 text-sm text-gray-600">
+              <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
+              <span>•</span>
+              <span>Answered: {getAnsweredCount()}/{totalQuestions}</span>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="mt-3 bg-gray-200 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-300"
-              style={{ width: `${progress.percentage}%` }}
-            />
+          <div className="text-right">
+            <div className={`text-3xl font-bold ${timeRemaining < 300 ? 'text-red-600 animate-pulse' :
+                timeRemaining < 600 ? 'text-orange-600' : 'text-blue-600'
+              }`}>
+              {formatTime(timeRemaining)}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Time Remaining</p>
           </div>
+        </div>
+
+        {/* Warning indicators */}
+        <div className="mt-4 flex gap-2 flex-wrap">
+          {tabSwitches > 0 && (
+            <div className="text-sm px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+              ⚠️ Tab switches: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 5}
+            </div>
+          )}
+          {attempt.quiz.antiCheatSettings?.enableFullScreen && !isFullScreen && (
+            <div className="text-sm px-3 py-1.5 bg-red-100 text-red-700 rounded-full animate-pulse font-medium">
+              ⚠️ Fullscreen required
+            </div>
+          )}
+          {timeRemaining < 300 && (
+            <div className="text-sm px-3 py-1.5 bg-red-100 text-red-700 rounded-full font-medium">
+              ⏰ Less than 5 minutes remaining!
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Section Navigation */}
-      <div className="bg-white border-b sticky top-[108px] z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex gap-2 overflow-x-auto">
-            {attempt.sections.map((section, idx) => {
-              const sectionQuestions = section.questions;
-              const answeredInSection = sectionQuestions.filter(q => isAnswered(q._id)).length;
+      {/* Question Content */}
+      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-6 mb-4">
+        <div className="mb-6">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Question {currentQuestionIndex + 1}
+            </h2>
+            <span className="bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full text-sm font-semibold">
+              {currentQuestion.marks || 1} {(currentQuestion.marks || 1) === 1 ? 'mark' : 'marks'}
+            </span>
+          </div>
 
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => {
-                    setCurrentSection(idx);
-                    scrollToQuestion(section.questions[0]._id);
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${currentSection === idx
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          <div className="bg-gray-50 p-5 rounded-lg border-l-4 border-blue-600">
+            <p className="text-gray-800 text-base leading-relaxed whitespace-pre-line">
+              {currentQuestion.prompt}
+            </p>
+          </div>
+        </div>
+
+        {/* Answer Options */}
+        <div className="space-y-3">
+          {currentQuestion.type === 'mcq_single' && currentQuestion.choices && (
+            <>
+              {currentQuestion.choices.map((choice, idx) => (
+                <label
+                  key={choice.id}
+                  className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[currentQuestion.question._id] === choice.id
+                      ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
+                      : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                     }`}
                 >
-                  <div>{section.name}</div>
-                  <div className="text-xs opacity-75">{answeredInSection}/{sectionQuestions.length}</div>
-                </button>
-              );
-            })}
-          </div>
+                  <div className="flex items-start">
+                    <input
+                      type="radio"
+                      name={currentQuestion.question._id}
+                      value={choice.id}
+                      checked={answers[currentQuestion.question._id] === choice.id}
+                      onChange={(e) => handleAnswerChange(currentQuestion.question._id, e.target.value)}
+                      className="mt-1 mr-3 w-5 h-5"
+                    />
+                    <span className="flex-1">
+                      <span className="font-bold text-gray-700 mr-3 bg-gray-100 px-2 py-1 rounded">
+                        {String.fromCharCode(65 + idx)}
+                      </span>
+                      {choice.text}
+                    </span>
+                  </div>
+                </label>
+              ))}
+            </>
+          )}
+
+          {currentQuestion.type === 'mcq_multi' && currentQuestion.choices && (
+            <>
+              <p className="text-sm text-blue-700 mb-3 italic font-medium bg-blue-50 p-2 rounded">
+                ℹ️ Select all that apply
+              </p>
+              {currentQuestion.choices.map((choice, idx) => (
+                <label
+                  key={choice.id}
+                  className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${(answers[currentQuestion.question._id] || []).includes(choice.id)
+                      ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
+                      : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-start">
+                    <input
+                      type="checkbox"
+                      value={choice.id}
+                      checked={(answers[currentQuestion.question._id] || []).includes(choice.id)}
+                      onChange={(e) => {
+                        const currentAnswers = answers[currentQuestion.question._id] || [];
+                        const newAnswers = e.target.checked
+                          ? [...currentAnswers, choice.id]
+                          : currentAnswers.filter(id => id !== choice.id);
+                        handleAnswerChange(currentQuestion.question._id, newAnswers);
+                      }}
+                      className="mt-1 mr-3 w-5 h-5"
+                    />
+                    <span className="flex-1">
+                      <span className="font-bold text-gray-700 mr-3 bg-gray-100 px-2 py-1 rounded">
+                        {String.fromCharCode(65 + idx)}
+                      </span>
+                      {choice.text}
+                    </span>
+                  </div>
+                </label>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Navigation */}
+      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
+        <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
+          <button
+            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentQuestionIndex === 0}
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            ← Previous
+          </button>
 
-          {/* Sidebar - Question Overview */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-4 sticky top-[168px]">
-              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Circle size={16} />
-                Question Overview
-              </h3>
+          <button
+            onClick={() => setShowNavigator(!showNavigator)}
+            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition"
+          >
+            {showNavigator ? 'Hide' : 'Show'} Navigator
+          </button>
 
-              <div className="space-y-4">
-                {attempt.sections.map((section, sIdx) => (
-                  <div key={section.id}>
-                    <div className="text-xs font-semibold text-gray-600 mb-2">{section.name}</div>
-                    <div className="grid grid-cols-5 gap-2">
-                      {section.questions.map((q, qIdx) => {
-                        const answered = isAnswered(q._id);
-                        const globalIdx = attempt.sections
-                          .slice(0, sIdx)
-                          .reduce((acc, s) => acc + s.questions.length, 0) + qIdx + 1;
-
-                        return (
-                          <button
-                            key={q._id}
-                            onClick={() => scrollToQuestion(q._id)}
-                            className={`aspect-square rounded-lg text-xs font-bold flex items-center justify-center transition ${answered
-                                ? 'bg-green-600 text-white shadow-md'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                          >
-                            {globalIdx}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 pt-4 border-t space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-600 rounded"></div>
-                  <span className="text-gray-600">Answered</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                  <span className="text-gray-600">Not Answered</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Questions */}
-          <div className="lg:col-span-3 space-y-6">
-            {attempt.sections.map((section, sIdx) => (
-              <div key={section.id} className="space-y-4">
-                {/* Section Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-5 shadow-lg">
-                  <h2 className="text-2xl font-bold mb-1">Section {sIdx + 1}: {section.name}</h2>
-                  <p className="text-blue-100 text-sm">{section.description}</p>
-                </div>
-
-                {/* Questions */}
-                {section.questions.map((q, qIdx) => {
-                  const globalIdx = attempt.sections
-                    .slice(0, sIdx)
-                    .reduce((acc, s) => acc + s.questions.length, 0) + qIdx + 1;
-
-                  return (
-                    <div
-                      key={q._id}
-                      ref={(el) => (questionRefs.current[q._id] = el)}
-                      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow border-2 border-gray-100"
-                    >
-                      <div className="p-6">
-                        {/* Question Header */}
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                Q{globalIdx}
-                              </span>
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(q.difficulty)}`}>
-                                {q.difficulty?.toUpperCase()}
-                              </span>
-                              {q.type === "mcq_multi" && (
-                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-600">
-                                  MULTIPLE ANSWERS
-                                </span>
-                              )}
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
-                              {q.prompt}
-                            </h3>
-                          </div>
-                          <div className="text-right ml-4">
-                            <div className="text-2xl font-bold text-blue-600">{q.marks}</div>
-                            <div className="text-xs text-gray-500">marks</div>
-                          </div>
-                        </div>
-
-                        {/* Choices */}
-                        <div className="space-y-3">
-                          {q.choices.map((ch) => {
-                            const isSelected = q.type === "mcq_single"
-                              ? answers[q._id] === ch.id
-                              : answers[q._id]?.includes(ch.id);
-
-                            return (
-                              <label
-                                key={ch.id}
-                                className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected
-                                    ? 'border-blue-600 bg-blue-50 shadow-md'
-                                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                                  }`}
-                              >
-                                <input
-                                  type={q.type === "mcq_single" ? "radio" : "checkbox"}
-                                  name={q._id}
-                                  value={ch.id}
-                                  checked={isSelected}
-                                  onChange={() => handleSelect(q._id, ch.id, q.type)}
-                                  className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                                />
-                                <span className={`flex-1 ${isSelected ? 'font-medium text-blue-900' : 'text-gray-700'}`}>
-                                  {ch.text}
-                                </span>
-                                {isSelected && (
-                                  <CheckCircle className="text-blue-600" size={20} />
-                                )}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            {/* Submit Section */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200">
-              <div className="text-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Ready to Submit?</h3>
-                <p className="text-gray-600">
-                  You have answered <span className="font-bold text-blue-600">{progress.answered}</span> out of{" "}
-                  <span className="font-bold">{progress.total}</span> questions
-                </p>
-              </div>
-
-              <button
-                onClick={handleSubmit}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 text-lg font-bold rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                Submit Assessment
-              </button>
-
-              <p className="text-center text-xs text-gray-500 mt-3">
-                Make sure you have reviewed all your answers before submitting
-              </p>
-            </div>
-          </div>
+          {currentQuestionIndex < totalQuestions - 1 ? (
+            <button
+              onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+            >
+              Next →
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {submitting ? 'Submitting...' : 'Submit Quiz ✓'}
+            </button>
+          )}
         </div>
+
+        {/* Question Navigator */}
+        {showNavigator && (
+          <div className="border-t pt-4">
+            <p className="text-sm text-gray-600 mb-3 font-semibold">Question Navigator</p>
+            <div className="flex gap-2 flex-wrap">
+              {attempt.selectedQuestions.map((q, idx) => (
+                <button
+                  key={q.question?._id || idx}
+                  onClick={() => setCurrentQuestionIndex(idx)}
+                  className={`w-12 h-12 rounded-lg font-semibold transition ${idx === currentQuestionIndex
+                      ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                      : answers[q.question?._id]
+                        ? 'bg-green-200 text-green-800 hover:bg-green-300'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  title={answers[q.question?._id] ? 'Answered' : 'Not answered'}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-4 text-xs text-gray-600">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-blue-600 rounded"></div>
+                <span>Current</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-green-200 rounded"></div>
+                <span>Answered</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                <span>Not Answered</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

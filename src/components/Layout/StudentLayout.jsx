@@ -7,10 +7,12 @@ const StudentLayout = ({ children }) => {
 
     const menuItems = [
         { name: "Dashboard", path: "/student/dashboard" },
-        { name: "My Quizzes", path: "/student/quizzes" },
+        { name: "All Quizzes", path: "/student/quizzes" },
+        { name: "Enrolled Quizzes", path: "/student/enrolled" },  // ✅ New Item
         { name: "Attempt History", path: "/student/history" },
         { name: "Profile", path: "/student/profile" },
     ];
+
 
     return (
         <div className="min-h-screen bg-gray-100 flex">

@@ -13,15 +13,19 @@ import QuizList from "../pages/trainer/QuizList";
 import QuestionList from "../pages/trainer/QuestionList";
 import ReviewAttempts from "../pages/trainer/ReviewAttempts";
 import QuizDetails from "../pages/trainer/QuizDetails";
+import QuizMonitor from "../pages/trainer/QuizMonitor";
+import AttemptDetails from "../pages/trainer/AttemptDetails";
 
 // STUDENT pages
-
 import StudentDashboard from "../pages/student/Dashboard";
 import StudentQuizList from "../pages/student/QuizList";
 import StudentHistory from "../pages/student/History";
 import StudentProfile from "../pages/student/Profile";
 import StudentLayout from "../components/Layout/StudentLayout";
 import QuizAttempt from "../pages/student/QuizAttempt";
+import EnrolledQuizList from "../pages/student/EnrolledQuizList";
+import QuizStart from "../pages/student/QuizStart";
+import QuizResult from "../pages/student/QuizResult";
 
 export const routes = [
     // ------------------- AUTH --------------------
@@ -59,6 +63,18 @@ export const routes = [
     {
         path: "/trainer/quizzes/:id/edit",
         element: <EditQuiz />,
+        protected: true,
+        roles: ["trainer", "admin"],
+    },
+    {
+        path: "/trainer/quizzes/:id/monitor",
+        element: <QuizMonitor />,
+        protected: true,
+        roles: ["trainer", "admin"],
+    },
+    {
+        path: "/trainer/quizzes/:quizId/attempts/:attemptId/details",
+        element: <AttemptDetails />,
         protected: true,
         roles: ["trainer", "admin"],
     },
@@ -115,6 +131,12 @@ export const routes = [
                 roles: ["student", "admin"],
             },
             {
+                path: "enrolled",
+                element: <EnrolledQuizList />,
+                protected: true,
+                roles: ["student", "admin"],
+            },
+            {
                 path: "history",
                 element: <StudentHistory />,
                 protected: true,
@@ -125,20 +147,27 @@ export const routes = [
                 element: <StudentProfile />,
                 protected: true,
                 roles: ["student", "admin"],
-            }, 
+            },
         ],
-        
+    },
+
+    // ------------------- STUDENT QUIZ FLOW --------------------
+    {
+        path: "/student/quiz/:id/start",
+        element: <QuizStart />,
+        protected: true,
+        roles: ["student", "admin"],
     },
     {
-        path: "/student/attempts",
+        path: "/student/attempt/:attemptId",
         element: <QuizAttempt />,
         protected: true,
         roles: ["student", "admin"],
     },
+    {
+        path: "/student/result/:attemptId",
+        element: <QuizResult />,
+        protected: true,
+        roles: ["student", "admin"],
+    },
 ];
-
-
-
-
-
-

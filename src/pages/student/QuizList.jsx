@@ -1,96 +1,107 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-// import { quizzesAPI } from "../../api/quizzes.api";  // uncomment once API ready
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useStudentQuizStore } from "../../store/studentQuiz.store";
+import { useDebounce } from "../../hooks/useDebounce";
+import { quizzesAPI } from "../../api/quizzes.api";
 
 const QuizList = () => {
-  const [quizzes, setQuizzes] = useState([]);
-  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
 
-  // TEMP MOCK DATA — replace with API response
-  const mockQuizzes = [
-    {
-      _id: "1",
-      title: "Java Basics",
-      subject: "Programming",
-      duration: 30,
-      totalMarks: 20
-    },
-    {
-      _id: "2",
-      title: "Data Structures - Level 1",
-      subject: "DSA",
-      duration: 45,
-      totalMarks: 30
-    },
-    {
-      _id: "3",
-      title: "Operating System Fundamentals",
-      subject: "OS",
-      duration: 40,
-      totalMarks: 25
-    }
-  ];
+  const {
+    quizzes,
+    loading,
+    error,
+    search,
+    setSearch,
+    fetchQuizzes,
+    enroll
+  } = useStudentQuizStore();
 
+  const debouncedSearch = useDebounce(search);
+
+  // Fetch quizzes (on first load + when search changes)
   useEffect(() => {
-    // API CALL EXAMPLE
-    // quizzesAPI.listForStudent().then(res => setQuizzes(res.data));
+    fetchQuizzes();
+  }, [debouncedSearch]);
 
-    setQuizzes(mockQuizzes); // temporary
-  }, []);
+  const handleEnroll = async (quizId) => {
+    try {
+      await enroll(quizId);
+      alert("Enrolled successfully!");
+    } catch (err) {
+      alert(err?.error || "Enrollment failed");
+    }
+  };
 
-  const filteredQuizzes = quizzes.filter(q =>
-    q.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleStart = async (quizId) => {
+    try {
+      const res = await quizzesAPI.start(quizId);
+      navigate(`/student/attempt/${res.data._id}`);
+    } catch (err) {
+      alert(err?.response?.data?.error || "Cannot start quiz");
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Available Quizzes</h1>
-        <p className="text-gray-600">Choose a quiz and start whenever you’re ready.</p>
+        <p className="text-gray-600">Enroll & attempt quizzes assigned to you</p>
       </div>
 
       {/* Search Bar */}
-      <div className="flex items-center gap-3">
-        <input
-          type="text"
-          placeholder="Search quizzes..."
-          className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-blue-300"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="Search quizzes..."
+        className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring focus:ring-blue-300"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {/* Loading */}
+      {loading && (
+        <p className="text-blue-600 font-medium">Loading quizzes...</p>
+      )}
+
+      {error && (
+        <p className="text-red-500">{error}</p>
+      )}
 
       {/* Quiz Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredQuizzes.map((quiz) => (
-          <div
-            key={quiz._id}
-            className="bg-white p-6 shadow rounded-xl hover:shadow-lg transition"
-          >
-            <h2 className="text-xl font-semibold text-gray-800">
-              {quiz.title}
-            </h2>
-
-            <p className="text-gray-500 mt-1">{quiz.subject}</p>
+        {quizzes.map((quiz) => (
+          <div key={quiz._id} className="p-5 bg-white shadow rounded-xl border">
+            <h2 className="text-lg font-bold text-gray-800">{quiz.title}</h2>
+            <p className="text-gray-500">{quiz.subject?.name || "No subject"}</p>
 
             <div className="mt-4 text-sm text-gray-700 space-y-1">
-              <p><strong>Duration:</strong> {quiz.duration} min</p>
-              <p><strong>Total Marks:</strong> {quiz.totalMarks}</p>
+              <p><strong>Attempts Left:</strong> {quiz.attemptsRemaining ?? "-"}</p>
+              <p><strong>Duration:</strong> {quiz.durationMinutes || 0} min</p>
             </div>
 
-            <Link
-              to={`/student/quizzes/${quiz._id}/start`}
-              className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition"
-            >
-              Start Quiz →
-            </Link>
+            {/* Conditional Buttons */}
+            {!quiz.isEnrolled ? (
+              <button
+                onClick={() => handleEnroll(quiz._id)}
+                className="mt-4 w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                Enroll
+              </button>
+            ) : (
+              <button
+                onClick={() => handleStart(quiz._id)}
+                className="mt-4 w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                Start Quiz →
+              </button>
+            )}
           </div>
         ))}
 
-        {/* No Results */}
-        {filteredQuizzes.length === 0 && (
-          <p className="text-gray-500">No quizzes found.</p>
+        {/* Empty state */}
+        {quizzes.length === 0 && !loading && (
+          <p className="text-gray-500 text-center w-full">No quizzes found.</p>
         )}
       </div>
     </div>
