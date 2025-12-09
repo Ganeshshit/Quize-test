@@ -1,4 +1,5 @@
 import Login from "../pages/auth/Login";
+import Register from "../pages/auth/Register";
 
 // ADMIN
 import AdminDashboard from "../pages/admin/AdminDashboard";
@@ -32,6 +33,11 @@ export const routes = [
     {
         path: "/login",
         element: <Login />,
+        protected: false,
+    },
+    {
+        path: "/register",
+        element: <Register />,
         protected: false,
     },
 
