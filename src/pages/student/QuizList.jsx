@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStudentQuizStore } from "../../store/studentQuiz.store";
 import { useDebounce } from "../../hooks/useDebounce";
-import { quizzesAPI } from "../../api/quizzes.api";
 
 const QuizList = () => {
   const navigate = useNavigate();
@@ -27,83 +26,132 @@ const QuizList = () => {
   const handleEnroll = async (quizId) => {
     try {
       await enroll(quizId);
-      alert("Enrolled successfully!");
+      alert("Enrolled successfully! Check 'My Enrolled Quizzes' to start.");
     } catch (err) {
       alert(err?.error || "Enrollment failed");
     }
   };
 
-  const handleStart = async (quizId) => {
-    try {
-      const res = await quizzesAPI.start(quizId);
-      navigate(`/student/attempt/${res.data._id}`);
-    } catch (err) {
-      alert(err?.response?.data?.error || "Cannot start quiz");
-    }
+  // Navigate to instruction page before starting
+  const handleStart = (quizId) => {
+    navigate(`/student/quiz/${quizId}/start`);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Available Quizzes</h1>
-        <p className="text-gray-600">Enroll & attempt quizzes assigned to you</p>
+        <h1 className="text-3xl font-bold text-gray-800">Available Quizzes</h1>
+        <p className="text-gray-600 mt-2">Enroll and start quizzes assigned to you</p>
       </div>
 
       {/* Search Bar */}
-      <input
-        type="text"
-        placeholder="Search quizzes..."
-        className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring focus:ring-blue-300"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="🔍 Search quizzes by title or subject..."
+          className="w-full px-5 py-3 border-2 border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       {/* Loading */}
       {loading && (
-        <p className="text-blue-600 font-medium">Loading quizzes...</p>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-blue-600 font-medium">Loading quizzes...</p>
+          </div>
+        </div>
       )}
 
+      {/* Error */}
       {error && (
-        <p className="text-red-500">{error}</p>
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+          <p className="text-red-700 font-semibold">{error}</p>
+        </div>
       )}
 
       {/* Quiz Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {quizzes.map((quiz) => (
-          <div key={quiz._id} className="p-5 bg-white shadow rounded-xl border">
-            <h2 className="text-lg font-bold text-gray-800">{quiz.title}</h2>
-            <p className="text-gray-500">{quiz.subject?.name || "No subject"}</p>
+      {!loading && !error && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {quizzes.map((quiz) => (
+            <div
+              key={quiz._id}
+              className="bg-white shadow-md hover:shadow-xl transition-all rounded-xl border border-gray-200 overflow-hidden"
+            >
+              {/* Quiz Header */}
+              <div className={`p-4 ${quiz.isEnrolled
+                ? 'bg-gradient-to-r from-green-500 to-green-600'
+                : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                } text-white`}>
+                <h2 className="text-xl font-bold truncate">{quiz.title}</h2>
+                <p className="text-sm mt-1 opacity-90">
+                  {quiz.subject?.name || "No subject"}
+                </p>
+              </div>
 
-            <div className="mt-4 text-sm text-gray-700 space-y-1">
-              <p><strong>Attempts Left:</strong> {quiz.attemptsRemaining ?? "-"}</p>
-              <p><strong>Duration:</strong> {quiz.durationMinutes || 0} min</p>
+              {/* Quiz Details */}
+              <div className="p-5 space-y-3">
+                <div className="flex items-center text-sm text-gray-700">
+                  <span className="font-semibold w-32">Attempts Left:</span>
+                  <span className="font-bold text-blue-600">
+                    {quiz.attemptsRemaining ?? "-"}
+                  </span>
+                </div>
+
+                <div className="flex items-center text-sm text-gray-700">
+                  <span className="font-semibold w-32">Duration:</span>
+                  <span>{quiz.durationMinutes || 0} minutes</span>
+                </div>
+
+                <div className="flex items-center text-sm text-gray-700">
+                  <span className="font-semibold w-32">Total Marks:</span>
+                  <span className="font-bold text-purple-600">
+                    {quiz.totalMarks || "N/A"}
+                  </span>
+                </div>
+
+                {/* Enrollment Status Badge */}
+                {quiz.isEnrolled && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
+                    <span className="text-green-700 font-semibold text-sm">
+                      ✅ Enrolled
+                    </span>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {!quiz.isEnrolled ? (
+                  <button
+                    onClick={() => handleEnroll(quiz._id)}
+                    className="mt-4 w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition font-semibold shadow-md hover:shadow-lg"
+                  >
+                    📝 Enroll Now
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleStart(quiz._id)}
+                    className="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-semibold shadow-md hover:shadow-lg"
+                  >
+                    🚀 Start Quiz
+                  </button>
+                )}
+              </div>
             </div>
+          ))}
 
-            {/* Conditional Buttons */}
-            {!quiz.isEnrolled ? (
-              <button
-                onClick={() => handleEnroll(quiz._id)}
-                className="mt-4 w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-              >
-                Enroll
-              </button>
-            ) : (
-              <button
-                onClick={() => handleStart(quiz._id)}
-                className="mt-4 w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-              >
-                Start Quiz →
-              </button>
-            )}
-          </div>
-        ))}
-
-        {/* Empty state */}
-        {quizzes.length === 0 && !loading && (
-          <p className="text-gray-500 text-center w-full">No quizzes found.</p>
-        )}
-      </div>
+          {/* Empty state */}
+          {quizzes.length === 0 && !loading && (
+            <div className="col-span-full text-center py-12 bg-white rounded-xl shadow-sm">
+              <div className="text-6xl mb-4">📚</div>
+              <p className="text-xl text-gray-600">No quizzes found.</p>
+              <p className="text-gray-500 mt-2">Try adjusting your search or check back later.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -27,6 +27,7 @@ import QuizAttempt from "../pages/student/QuizAttempt";
 import EnrolledQuizList from "../pages/student/EnrolledQuizList";
 import QuizStart from "../pages/student/QuizStart";
 import QuizResult from "../pages/student/QuizResult";
+import QuizStartInstructions from "../pages/student/QuizStartInstructions";
 
 export const routes = [
     // ------------------- AUTH --------------------
@@ -160,7 +161,7 @@ export const routes = [
     // ------------------- STUDENT QUIZ FLOW --------------------
     {
         path: "/student/quiz/:id/start",
-        element: <QuizStart />,
+        element: <QuizStartInstructions/>,
         protected: true,
         roles: ["student", "admin"],
     },

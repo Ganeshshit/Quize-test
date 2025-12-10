@@ -16,9 +16,9 @@ const QuizAttempt = () => {
   const [submitting, setSubmitting] = useState(false);
   const [tabSwitches, setTabSwitches] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [warningShown, setWarningShown] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
   const [questionTimeTracking, setQuestionTimeTracking] = useState({});
+  const [cameraStream, setCameraStream] = useState(null);
 
   // Refs
   const timerRef = useRef(null);
@@ -26,6 +26,8 @@ const QuizAttempt = () => {
   const autoSaveIntervalRef = useRef(null);
   const questionStartTimeRef = useRef(Date.now());
   const visibilityChangeCountRef = useRef(0);
+  const videoRef = useRef(null);
+  const isAutoSubmittingRef = useRef(false);
 
   // Generate client fingerprint
   const generateFingerprint = useCallback(() => {
@@ -40,15 +42,48 @@ const QuizAttempt = () => {
   const [clientFingerprint] = useState(() => generateFingerprint());
 
   // ==========================================
+  // SECURITY: Camera Access
+  // ==========================================
+  useEffect(() => {
+    if (!attempt?.quiz?.antiCheatSettings?.enableWebcamProctoring) return;
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+
+        setCameraStream(stream);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error("Camera access error:", error);
+        toast.error("Camera access is required for this quiz");
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [attempt]);
+
+  // ==========================================
   // SECURITY: Prevent copy-paste
   // ==========================================
   useEffect(() => {
+    if (!attempt?.quiz?.antiCheatSettings?.disableCopyPaste) return;
+
     const preventCopyPaste = (e) => {
-      if (attempt?.quiz?.antiCheatSettings?.disableCopyPaste) {
-        e.preventDefault();
-        toast.error("Copy-paste is disabled during quiz", { duration: 2000 });
-        return false;
-      }
+      e.preventDefault();
+      toast.error("Copy-paste is disabled during quiz", { duration: 2000 });
+      return false;
     };
 
     document.addEventListener("copy", preventCopyPaste);
@@ -83,8 +118,10 @@ const QuizAttempt = () => {
 
     const enterFullScreen = async () => {
       try {
-        await document.documentElement.requestFullscreen();
-        setIsFullScreen(true);
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+          setIsFullScreen(true);
+        }
       } catch (err) {
         console.error("Fullscreen error:", err);
         toast.error("Please enable fullscreen mode");
@@ -95,29 +132,32 @@ const QuizAttempt = () => {
       const isFS = !!document.fullscreenElement;
       setIsFullScreen(isFS);
 
-      if (!isFS && !submitting && !warningShown) {
-        setWarningShown(true);
-        toast.error("⚠️ Please return to fullscreen mode!", { duration: 5000 });
+      if (!isFS && !submitting && !isAutoSubmittingRef.current) {
+        toast.error("⚠️ You exited fullscreen! Please return to fullscreen mode!", {
+          duration: 5000
+        });
 
+        // Try to re-enter fullscreen after 2 seconds
         setTimeout(() => {
-          if (!document.fullscreenElement) {
+          if (!document.fullscreenElement && !isAutoSubmittingRef.current) {
             enterFullScreen();
           }
-          setWarningShown(false);
-        }, 3000);
+        }, 2000);
       }
     };
 
+    // Enter fullscreen immediately when quiz loads
     enterFullScreen();
+
     document.addEventListener("fullscreenchange", handleFullScreenChange);
 
     return () => {
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
-      if (document.fullscreenElement) {
+      if (document.fullscreenElement && !isAutoSubmittingRef.current) {
         document.exitFullscreen().catch(() => { });
       }
     };
-  }, [attempt, submitting, warningShown]);
+  }, [attempt, submitting]);
 
   // ==========================================
   // SECURITY: Tab switch detection
@@ -126,23 +166,23 @@ const QuizAttempt = () => {
     if (!attempt?.quiz?.antiCheatSettings?.enableTabSwitchDetection) return;
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
+      if (document.hidden && !isAutoSubmittingRef.current) {
         visibilityChangeCountRef.current += 1;
         const newCount = visibilityChangeCountRef.current;
         setTabSwitches(newCount);
 
-        const maxSwitches = attempt.quiz.antiCheatSettings.maxTabSwitches || 5;
+        const maxSwitches = attempt.quiz.antiCheatSettings.maxTabSwitches || 2;
 
         if (newCount >= maxSwitches) {
           toast.error(
-            `⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting...`,
+            `⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting quiz...`,
             { duration: 5000 }
           );
           setTimeout(() => handleAutoSubmit(), 2000);
         } else {
           toast.warning(
-            `⚠️ Tab switch detected! (${newCount}/${maxSwitches})`,
-            { duration: 3000 }
+            `⚠️ Tab switch detected! Warning ${newCount}/${maxSwitches}`,
+            { duration: 4000 }
           );
         }
       }
@@ -178,11 +218,11 @@ const QuizAttempt = () => {
   // Auto-save answers periodically
   // ==========================================
   useEffect(() => {
-    if (!attemptId || !attempt) return;
+    if (!attemptId || !attempt || isAutoSubmittingRef.current) return;
 
     autoSaveIntervalRef.current = setInterval(() => {
       saveAnswersToServer();
-    }, 30000); // Auto-save every 30 seconds
+    }, 30000);
 
     return () => {
       if (autoSaveIntervalRef.current) {
@@ -192,6 +232,8 @@ const QuizAttempt = () => {
   }, [attemptId, attempt, answers]);
 
   const saveAnswersToServer = async () => {
+    if (isAutoSubmittingRef.current) return;
+
     try {
       const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
         questionId,
@@ -236,7 +278,7 @@ const QuizAttempt = () => {
 
         if (res.data.status !== "in_progress") {
           toast.info("This quiz has already been submitted");
-          navigate(`/student/result/${attemptId}`);
+          navigate("/student/enrolled");
           return;
         }
 
@@ -301,6 +343,8 @@ const QuizAttempt = () => {
   };
 
   const handleAnswerChange = (questionId, answer) => {
+    if (isAutoSubmittingRef.current) return;
+
     setAnswers(prev => ({
       ...prev,
       [questionId]: answer
@@ -309,6 +353,10 @@ const QuizAttempt = () => {
   };
 
   const handleAutoSubmit = async () => {
+    if (isAutoSubmittingRef.current) return;
+
+    isAutoSubmittingRef.current = true;
+
     if (timerRef.current) clearInterval(timerRef.current);
     if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
 
@@ -317,6 +365,12 @@ const QuizAttempt = () => {
   };
 
   const submitQuiz = async (isAutoSubmit = false) => {
+    if (isAutoSubmittingRef.current && !isAutoSubmit) return;
+
+    if (isAutoSubmit) {
+      isAutoSubmittingRef.current = true;
+    }
+
     try {
       setSubmitting(true);
 
@@ -335,12 +389,18 @@ const QuizAttempt = () => {
       });
 
       if (res.success) {
+        // Exit fullscreen
         if (document.fullscreenElement) {
           await document.exitFullscreen().catch(() => { });
         }
 
+        // Stop camera stream
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(track => track.stop());
+        }
+
         toast.success("✅ Quiz submitted successfully!");
-        navigate(`/student/result/${attemptId}`);
+        navigate("/student/enrolled");
       } else {
         toast.error(res.error || "Submission failed");
       }
@@ -354,6 +414,8 @@ const QuizAttempt = () => {
   };
 
   const handleSubmit = () => {
+    if (isAutoSubmittingRef.current) return;
+
     const unanswered = attempt.selectedQuestions.filter(
       q => !answers[q.question._id]
     );
@@ -444,13 +506,29 @@ const QuizAttempt = () => {
             </div>
           </div>
 
-          <div className="text-right">
-            <div className={`text-3xl font-bold ${timeRemaining < 300 ? 'text-red-600 animate-pulse' :
+          <div className="flex items-center gap-4">
+            {/* Camera Indicator */}
+            {attempt.quiz.antiCheatSettings?.enableWebcamProctoring && (
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  className="w-24 h-24 rounded-lg border-2 border-green-500 object-cover"
+                />
+                <div className="absolute top-1 right-1 w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+              </div>
+            )}
+
+            {/* Timer */}
+            <div className="text-right">
+              <div className={`text-3xl font-bold ${timeRemaining < 300 ? 'text-red-600 animate-pulse' :
                 timeRemaining < 600 ? 'text-orange-600' : 'text-blue-600'
-              }`}>
-              {formatTime(timeRemaining)}
+                }`}>
+                {formatTime(timeRemaining)}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Time Remaining</p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Time Remaining</p>
           </div>
         </div>
 
@@ -458,7 +536,7 @@ const QuizAttempt = () => {
         <div className="mt-4 flex gap-2 flex-wrap">
           {tabSwitches > 0 && (
             <div className="text-sm px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full font-medium">
-              ⚠️ Tab switches: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 5}
+              ⚠️ Tab switch warnings: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 2}
             </div>
           )}
           {attempt.quiz.antiCheatSettings?.enableFullScreen && !isFullScreen && (
@@ -501,8 +579,8 @@ const QuizAttempt = () => {
                 <label
                   key={choice.id}
                   className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[currentQuestion.question._id] === choice.id
-                      ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
-                      : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                    ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                     }`}
                 >
                   <div className="flex items-start">
@@ -535,8 +613,8 @@ const QuizAttempt = () => {
                 <label
                   key={choice.id}
                   className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${(answers[currentQuestion.question._id] || []).includes(choice.id)
-                      ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
-                      : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                    ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                     }`}
                 >
                   <div className="flex items-start">
@@ -572,7 +650,7 @@ const QuizAttempt = () => {
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
           <button
             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentQuestionIndex === 0}
+            disabled={currentQuestionIndex === 0 || isAutoSubmittingRef.current}
             className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             ← Previous
@@ -580,7 +658,8 @@ const QuizAttempt = () => {
 
           <button
             onClick={() => setShowNavigator(!showNavigator)}
-            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition"
+            disabled={isAutoSubmittingRef.current}
+            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition disabled:opacity-50"
           >
             {showNavigator ? 'Hide' : 'Show'} Navigator
           </button>
@@ -588,14 +667,15 @@ const QuizAttempt = () => {
           {currentQuestionIndex < totalQuestions - 1 ? (
             <button
               onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+              disabled={isAutoSubmittingRef.current}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
             >
               Next →
             </button>
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || isAutoSubmittingRef.current}
               className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {submitting ? 'Submitting...' : 'Submit Quiz ✓'}
@@ -612,11 +692,12 @@ const QuizAttempt = () => {
                 <button
                   key={q.question?._id || idx}
                   onClick={() => setCurrentQuestionIndex(idx)}
-                  className={`w-12 h-12 rounded-lg font-semibold transition ${idx === currentQuestionIndex
-                      ? 'bg-blue-600 text-white ring-2 ring-blue-300'
-                      : answers[q.question?._id]
-                        ? 'bg-green-200 text-green-800 hover:bg-green-300'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  disabled={isAutoSubmittingRef.current}
+                  className={`w-12 h-12 rounded-lg font-semibold transition disabled:opacity-50 ${idx === currentQuestionIndex
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                    : answers[q.question?._id]
+                      ? 'bg-green-200 text-green-800 hover:bg-green-300'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   title={answers[q.question?._id] ? 'Answered' : 'Not answered'}
                 >
