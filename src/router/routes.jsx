@@ -16,6 +16,7 @@ import ReviewAttempts from "../pages/trainer/ReviewAttempts";
 import QuizDetails from "../pages/trainer/QuizDetails";
 import QuizMonitor from "../pages/trainer/QuizMonitor";
 import AttemptDetails from "../pages/trainer/AttemptDetails";
+import QuizEnrollment from "../pages/trainer/QuizeEnrollment"; // NEW
 
 // STUDENT pages
 import StudentDashboard from "../pages/student/Dashboard";
@@ -76,6 +77,12 @@ export const routes = [
     {
         path: "/trainer/quizzes/:id/monitor",
         element: <QuizMonitor />,
+        protected: true,
+        roles: ["trainer", "admin"],
+    },
+    {
+        path: "/trainer/quizzes/:quizId/enrollment",
+        element: <QuizEnrollment />,
         protected: true,
         roles: ["trainer", "admin"],
     },

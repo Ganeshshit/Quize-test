@@ -493,7 +493,7 @@ const QuizAttempt = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-4">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-gray-100 p-4">
       {/* Header */}
       <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
         <div className="flex justify-between items-center flex-wrap gap-4">

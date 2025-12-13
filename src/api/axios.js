@@ -3,8 +3,8 @@ import axios from 'axios';
 import { jwtService } from '../services/jwt.service';
 import { storageService } from '../services/storage.service';
 
-const BASE_URL = 'https://mediniquizeapplicationbackend.onrender.com/api/v1';
-// const BASE_URL='http://localhost:5000/api/v1';
+// const BASE_URL = 'https://mediniquizeapplicationbackend.onrender.com/api/v1';
+const BASE_URL='http://localhost:5000/api/v1';
 // Create axios instance
 const axiosInstance = axios.create({
     baseURL: BASE_URL,

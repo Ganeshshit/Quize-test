@@ -1,379 +1,349 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+    BookOpen,
+    Users,
+    Upload,
+    Settings,
+    AlertCircle,
+    Loader2,
+    Library,
+    List
+} from "lucide-react";
+
 import TrainerLayout from "../../components/Layout/TrainerLayout";
 import { quizzesAPI } from "../../api/quizzes.api";
 import { questionsAPI } from "../../api/questions.api";
-import QuestionCard from "../../components/trainer/QuestionCard";
+
+import QuizHeader from "../../components/trainer/quiz/QuizHeader";
+import QuizQuestionList from "../../components/trainer/quiz/QuizQuestionList";
+import QuestionBank from "../../components/trainer/quiz/QuestionBank";
+import BulkUpload from "../../components/trainer/quiz/BulkUpload";
+import AddQuestionModal from "../../components/trainer/quiz/AddQuestionModal";
+import Breadcrumbs from "../../components/comon/Breadcrumbs";
 
 const QuizDetails = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
 
+    // State Management
     const [quiz, setQuiz] = useState(null);
     const [quizQuestions, setQuizQuestions] = useState([]);
     const [questionBank, setQuestionBank] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [subjects, setSubjects] = useState([]);
 
-    const [uploading, setUploading] = useState(false);
+    const [selectedSubject, setSelectedSubject] = useState("all");
+    const [selectedDifficulty, setSelectedDifficulty] = useState("all");
+
+    const [loading, setLoading] = useState(true);
+    const [bankLoading, setBankLoading] = useState(false);
     const [searchQuiz, setSearchQuiz] = useState("");
     const [searchBank, setSearchBank] = useState("");
+
     const [showAddModal, setShowAddModal] = useState(false);
-    const [file, setFile] = useState(null);
+    const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState("questions"); // questions | bank | upload
 
-    const [newQ, setNewQ] = useState({
-        prompt: "",
-        marks: 1,
-        choices: [
-            { id: "A", text: "", isCorrect: false },
-            { id: "B", text: "", isCorrect: false },
-            { id: "C", text: "", isCorrect: false },
-            { id: "D", text: "", isCorrect: false },
-        ]
-    });
+    // Load subjects
+    const loadSubjects = useCallback(async () => {
+        try {
+            const res = await questionsAPI.getAll({ limit: 1000 });
+            const map = new Map();
+            res.data?.forEach((q) => {
+                if (q.subject?._id) {
+                    map.set(q.subject._id, q.subject);
+                }
+            });
+            setSubjects([...map.values()]);
+        } catch {
+            setSubjects([]);
+        }
+    }, []);
 
+    // Load question bank with filters
+    const loadQuestionBank = useCallback(async () => {
+        try {
+            setBankLoading(true);
+            const params = { page: 1, limit: 1000 };
+            if (selectedSubject !== "all") params.subject = selectedSubject;
+            if (selectedDifficulty !== "all") params.difficulty = selectedDifficulty;
+
+            const res = await questionsAPI.getAll(params);
+            setQuestionBank(res.data || []);
+        } catch {
+            setQuestionBank([]);
+        } finally {
+            setBankLoading(false);
+        }
+    }, [selectedSubject, selectedDifficulty]);
+
+    // Load quiz data initially
     useEffect(() => {
+        const loadData = async () => {
+            try {
+                setLoading(true);
+                const quizRes = await quizzesAPI.getById(id);
+                const quizQsRes = await quizzesAPI.getQuestions(id);
+
+                setQuiz(quizRes.data);
+                setQuizQuestions(quizQsRes.data.questions || []);
+
+                await loadSubjects();
+                await loadQuestionBank();
+            } catch {
+                setError("Failed to load quiz");
+            } finally {
+                setLoading(false);
+            }
+        };
+
         loadData();
     }, [id]);
 
-    const loadData = async () => {
-        try {
-            setLoading(true);
+    // Reload question bank when filters change
+    useEffect(() => {
+        if (!loading) loadQuestionBank();
+    }, [selectedSubject, selectedDifficulty]);
 
-            const [quizRes, quizQsRes, bankRes] = await Promise.all([
-                quizzesAPI.getById(id),
-                quizzesAPI.getQuestions(id),
-                questionsAPI.getAll(),
-            ]);
-
-            setQuiz(quizRes.data);
-            setQuizQuestions(quizQsRes.data.questions || []);
-            setQuestionBank(bankRes.data || []);
-
-        } catch (err) {
-            console.error("Failed to load quiz details:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Add question to quiz
     const handleAddQuestion = async (questionId) => {
         try {
             await quizzesAPI.addQuestion(id, questionId);
-            const question = questionBank.find((q) => q._id === questionId);
-            setQuizQuestions((prev) => [...prev, question]);
-        } catch (err) {
-            console.error(err);
+            const newQ = questionBank.find((x) => x._id === questionId);
+            if (newQ) setQuizQuestions((prev) => [...prev, newQ]);
+        } catch {
             alert("Failed to add question");
         }
     };
 
+    // Remove question
     const handleRemoveQuestion = async (questionId) => {
-        if (!window.confirm("Remove this question from quiz?")) return;
-
         try {
             await quizzesAPI.removeQuestion(id, questionId);
-            setQuizQuestions(prev => prev.filter((q) => q._id !== questionId));
-        } catch (err) {
-            console.error(err);
+            setQuizQuestions((prev) => prev.filter((q) => q._id !== questionId));
+        } catch {
             alert("Failed to remove question");
         }
     };
 
-    const handleBulkUpload = async (e) => {
-        e.preventDefault();
-        if (!file) return alert("Please upload a file");
-
-        setUploading(true);
-        try {
-            await quizzesAPI.bulkUploadQuestions(id, file);
-            const res = await quizzesAPI.getQuestions(id);
-            setQuizQuestions(res.data.data.questions || []);
-            alert("Bulk upload successful!");
-            setFile(null);
-        } catch (err) {
-            console.error(err);
-            alert("Failed to upload file");
-        } finally {
-            setUploading(false);
+    // Tab Configuration
+    const tabs = [
+        {
+            id: "questions",
+            label: "Quiz Questions",
+            icon: List,
+            count: quizQuestions.length
+        },
+        {
+            id: "bank",
+            label: "Question Bank",
+            icon: Library,
+            count: questionBank.filter(
+                (bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)
+            ).length
+        },
+        {
+            id: "upload",
+            label: "Bulk Upload",
+            icon: Upload
         }
-    };
-
-    const handleManualAdd = async (e) => {
-        e.preventDefault();
-
-        const hasCorrect = newQ.choices.some(c => c.isCorrect);
-        if (!hasCorrect) return alert("Select at least one correct option.");
-
-        try {
-            const res = await quizzesAPI.manualAddQuestion(id, newQ);
-            setQuizQuestions(prev => [...prev, res.data]);
-
-            alert("Question added!");
-
-            setNewQ({
-                prompt: "",
-                marks: 1,
-                choices: [
-                    { id: "A", text: "", isCorrect: false },
-                    { id: "B", text: "", isCorrect: false },
-                    { id: "C", text: "", isCorrect: false },
-                    { id: "D", text: "", isCorrect: false },
-                ]
-            });
-            setShowAddModal(false);
-
-        } catch (err) {
-            console.error(err);
-            alert("Failed to add question");
-        }
-    };
+    ];
 
     if (loading) {
         return (
             <TrainerLayout>
-                <div className="text-center text-lg py-10">Loading...</div>
-            </TrainerLayout>
-        );
-    }
-
-    if (!quiz) {
-        return (
-            <TrainerLayout>
-                <div className="text-center text-lg py-10">Quiz not found</div>
+                <div className="flex flex-col justify-center items-center h-screen">
+                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+                    <p className="text-xl font-semibold text-gray-700">Loading Quiz...</p>
+                </div>
             </TrainerLayout>
         );
     }
 
     return (
         <TrainerLayout>
-            {/* HEADER */}
-            <div className="mb-8 flex justify-between items-center bg-white p-5 rounded-xl shadow-sm">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800">{quiz.title}</h1>
-                    <p className="text-gray-600 mt-1">
-                        {quiz.subject?.name} • {quiz.durationMinutes} mins • Total Marks:{" "}
-                        <span className="font-semibold">{quiz.totalMarks}</span>
-                    </p>
-                </div>
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+                <div className="max-w-7xl mx-auto">
 
-                <Link
-                    to="/trainer/quizzes"
-                    className="px-5 py-2 rounded-md border bg-gray-100 hover:bg-gray-200 transition"
-                >
-                    Back to List
-                </Link>
-            </div>
-
-            {/* GRID LAYOUT */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                {/* LEFT - QUIZ QUESTIONS (NOW SCROLLABLE) */}
-                <div className="bg-white rounded-xl shadow-sm p-6 h-[75vh] flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold">Questions in this Quiz</h2>
-                        <button
-                            onClick={() => setShowAddModal(true)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                            + Add Question
-                        </button>
+                    {/* Breadcrumbs */}
+                    <div className="mb-4">
+                        <Breadcrumbs
+                            items={[
+                                { label: "Quizzes", to: "/trainer/quizzes" },
+                                { label: quiz?.title, to: `/trainer/quizzes/${id}/details` },
+                                { label: "Details" }
+                            ]}
+                        />
                     </div>
 
-                    <input
-                        type="text"
-                        placeholder="Search questions..."
-                        className="w-full mb-4 border px-3 py-2 rounded-md"
-                        value={searchQuiz}
-                        onChange={(e) => setSearchQuiz(e.target.value)}
-                    />
-
-                    {/* SCROLLABLE CONTENT */}
-                    <div className="space-y-4 overflow-y-auto pr-2 flex-1">
-                        {quizQuestions
-                            .filter((q) =>
-                                q.prompt?.toLowerCase().includes(searchQuiz.toLowerCase())
-                            )
-                            .map((q) => (
-                                <div
-                                    key={q._id}
-                                    className="border rounded-xl p-4 bg-gray-50 shadow-sm"
-                                >
-                                    <QuestionCard question={q} />
-
-                                    <div className="flex justify-end gap-3 mt-3">
-                                        <Link
-                                            to={`/trainer/questions/${q._id}/edit`}
-                                            className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100"
-                                        >
-                                            Edit
-                                        </Link>
-                                        <button
-                                            onClick={() => handleRemoveQuestion(q._id)}
-                                            className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
-                                        >
-                                            Remove
-                                        </button>
+                    {/* Header Section */}
+                    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
+                            <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-2.5 shadow-md">
+                                        <BookOpen className="w-6 h-6 text-white" />
                                     </div>
+                                    <h1 className="text-3xl font-bold text-gray-900">{quiz.title}</h1>
                                 </div>
-                            ))}
-                    </div>
-                </div>
-
-                {/* RIGHT - QUESTION BANK + BULK */}
-                <div className="space-y-6">
-
-                    {/* BULK UPLOAD CARD */}
-                    <div className="bg-white rounded-xl shadow-sm p-6">
-                        <h2 className="text-xl font-semibold mb-3">Bulk Upload Questions</h2>
-                        <form onSubmit={handleBulkUpload} className="space-y-3">
-                            <input
-                                type="file"
-                                accept=".xls,.xlsx,.csv"
-                                onChange={(e) => setFile(e.target.files[0])}
-                                className="border p-2 w-full rounded-md"
-                            />
+                                <p className="text-gray-600 ml-12">{quiz.description || "No description provided"}</p>
+                            </div>
 
                             <button
-                                type="submit"
-                                disabled={uploading}
-                                className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                onClick={() => navigate(`/trainer/quizzes/${id}/enrollment`)}
+                                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-medium shadow-md hover:shadow-lg flex items-center gap-2 whitespace-nowrap"
                             >
-                                {uploading ? "Uploading..." : "Upload File"}
+                                <Users className="w-5 h-5" />
+                                Manage Enrollment
                             </button>
-                        </form>
+                        </div>
+
+                        {/* Quiz Info Section */}
+                        <QuizHeader quiz={quiz} />
                     </div>
 
-                    {/* QUESTION BANK */}
-                    <div className="bg-white rounded-xl shadow-sm p-6">
-                        <h2 className="text-xl font-semibold mb-3">Question Bank</h2>
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-6 flex items-center gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                            <p className="text-red-800 font-medium">{error}</p>
+                        </div>
+                    )}
 
-                        <input
-                            type="text"
-                            placeholder="Search question bank..."
-                            className="w-full mb-4 border px-3 py-2 rounded-md"
-                            value={searchBank}
-                            onChange={(e) => setSearchBank(e.target.value)}
-                        />
+                    {/* Tabs Navigation */}
+                    <div className="bg-white rounded-t-xl shadow-lg border border-gray-200 border-b-0">
+                        <div className="flex overflow-x-auto">
+                            {tabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
 
-                        <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2">
-                            {questionBank
-                                .filter((q) =>
-                                    q.prompt?.toLowerCase().includes(searchBank.toLowerCase())
-                                )
-                                .map((q) => (
-                                    <div
-                                        key={q._id}
-                                        className="border rounded-xl p-4 bg-gray-50 shadow-sm flex justify-between items-start"
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex items-center gap-2 px-6 py-4 font-medium transition-all border-b-2 whitespace-nowrap ${isActive
+                                                ? "text-blue-600 border-blue-600 bg-blue-50"
+                                                : "text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50"
+                                            }`}
                                     >
-                                        <div>
-                                            <p className="font-medium text-sm">{q.prompt}</p>
-                                            <p className="text-xs text-gray-500">
-                                                Marks: {q.marks || 1}
-                                            </p>
-                                        </div>
-
-                                        <button
-                                            onClick={() => handleAddQuestion(q._id)}
-                                            className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                ))}
+                                        <Icon className="w-5 h-5" />
+                                        <span>{tab.label}</span>
+                                        {tab.count !== undefined && (
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isActive
+                                                    ? "bg-blue-600 text-white"
+                                                    : "bg-gray-200 text-gray-700"
+                                                }`}>
+                                                {tab.count}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
-                </div>
-            </div>
 
-            {/* MODAL - ADD MANUAL QUESTION */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg animate-fadeIn">
-
-                        <h2 className="text-xl font-bold mb-4">Add Manual Question</h2>
-
-                        <form onSubmit={handleManualAdd} className="space-y-4">
-
-                            <div>
-                                <label className="font-semibold">Question Prompt</label>
-                                <textarea
-                                    required
-                                    className="w-full border rounded px-3 py-2 mt-1"
-                                    value={newQ.prompt}
-                                    onChange={(e) =>
-                                        setNewQ({ ...newQ, prompt: e.target.value })
-                                    }
+                    {/* Tab Content */}
+                    <div className="bg-white rounded-b-xl shadow-lg border border-gray-200 border-t-0 p-6">
+                        {activeTab === "questions" && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <QuizQuestionList
+                                    questions={quizQuestions}
+                                    search={searchQuiz}
+                                    setSearch={setSearchQuiz}
+                                    onRemove={handleRemoveQuestion}
+                                    onOpenModal={() => setShowAddModal(true)}
                                 />
                             </div>
+                        )}
 
-                            <div>
-                                <label className="font-semibold">Marks</label>
-                                <input
-                                    type="number"
-                                    className="w-full border rounded px-3 py-2 mt-1"
-                                    min="1"
-                                    value={newQ.marks}
-                                    onChange={(e) =>
-                                        setNewQ({ ...newQ, marks: Number(e.target.value) })
-                                    }
+                        {activeTab === "bank" && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <QuestionBank
+                                    questionBank={questionBank}
+                                    quizQuestions={quizQuestions}
+                                    subjects={subjects}
+                                    selectedSubject={selectedSubject}
+                                    selectedDifficulty={selectedDifficulty}
+                                    setSelectedSubject={setSelectedSubject}
+                                    setSelectedDifficulty={setSelectedDifficulty}
+                                    search={searchBank}
+                                    setSearch={setSearchBank}
+                                    bankLoading={bankLoading}
+                                    onAdd={handleAddQuestion}
                                 />
                             </div>
+                        )}
 
-                            <div>
-                                <label className="font-semibold">Options</label>
-
-                                {newQ.choices.map((choice, index) => (
-                                    <div key={choice.id} className="flex items-center gap-3 mt-2">
-
-                                        <input
-                                            type="radio"
-                                            name="correctOption"
-                                            onChange={() => {
-                                                const updated = newQ.choices.map((c) => ({
-                                                    ...c,
-                                                    isCorrect: c.id === choice.id,
-                                                }));
-                                                setNewQ({ ...newQ, choices: updated });
-                                            }}
-                                            checked={choice.isCorrect}
-                                        />
-
-                                        <span className="w-6 font-medium">{choice.id}.</span>
-
-                                        <input
-                                            type="text"
-                                            className="flex-1 border rounded px-2 py-1"
-                                            value={choice.text}
-                                            onChange={(e) => {
-                                                const updated = [...newQ.choices];
-                                                updated[index].text = e.target.value;
-                                                setNewQ({ ...newQ, choices: updated });
-                                            }}
-                                            required
-                                        />
-                                    </div>
-                                ))}
+                        {activeTab === "upload" && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <BulkUpload
+                                    quizId={id}
+                                    reloadQuiz={async () => {
+                                        const quizQsRes = await quizzesAPI.getQuestions(id);
+                                        setQuizQuestions(quizQsRes.data.questions || []);
+                                    }}
+                                />
                             </div>
-
-                            <div className="flex justify-end gap-3 mt-5">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddModal(false)}
-                                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-                                >
-                                    Cancel
-                                </button>
-
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                >
-                                    Add Question
-                                </button>
-                            </div>
-                        </form>
+                        )}
                     </div>
+
+                    {/* Quick Stats Footer */}
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-blue-100 rounded-lg p-3">
+                                    <List className="w-6 h-6 text-blue-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600 font-medium">Questions in Quiz</p>
+                                    <p className="text-2xl font-bold text-gray-900">{quizQuestions.length}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-green-100 rounded-lg p-3">
+                                    <Library className="w-6 h-6 text-green-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600 font-medium">Available Questions</p>
+                                    <p className="text-2xl font-bold text-gray-900">
+                                        {questionBank.filter(
+                                            (bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)
+                                        ).length}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-purple-100 rounded-lg p-3">
+                                    <Settings className="w-6 h-6 text-purple-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600 font-medium">Total Marks</p>
+                                    <p className="text-2xl font-bold text-gray-900">
+                                        {quizQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-            )}
+
+                {/* Add new question modal */}
+                {showAddModal && (
+                    <AddQuestionModal
+                        quizId={id}
+                        onClose={() => setShowAddModal(false)}
+                        onAdded={(newQ) => setQuizQuestions((prev) => [...prev, newQ])}
+                        reloadBank={loadQuestionBank}
+                    />
+                )}
+            </div>
         </TrainerLayout>
     );
 };
