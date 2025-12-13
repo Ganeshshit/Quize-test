@@ -1,6 +1,9 @@
+// src/pages/student/QuizAttempt.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { quizzesAPI } from "../../api/quizzes.api";
+import { proctorAPI, PROCTOR_EVENTS } from "../../api/proctor.api";
+import { socketService } from "../../services/socket.service";
 import { toast } from "react-hot-toast";
 
 const QuizAttempt = () => {
@@ -17,8 +20,8 @@ const QuizAttempt = () => {
   const [tabSwitches, setTabSwitches] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
-  const [questionTimeTracking, setQuestionTimeTracking] = useState({});
   const [cameraStream, setCameraStream] = useState(null);
+  const [proctorConnected, setProctorConnected] = useState(false);
 
   // Refs
   const timerRef = useRef(null);
@@ -28,6 +31,7 @@ const QuizAttempt = () => {
   const visibilityChangeCountRef = useRef(0);
   const videoRef = useRef(null);
   const isAutoSubmittingRef = useRef(false);
+  const proctorTokenRef = useRef(null);
 
   // Generate client fingerprint
   const generateFingerprint = useCallback(() => {
@@ -42,76 +46,7 @@ const QuizAttempt = () => {
   const [clientFingerprint] = useState(() => generateFingerprint());
 
   // ==========================================
-  // SECURITY: Camera Access
-  // ==========================================
-  useEffect(() => {
-    if (!attempt?.quiz?.antiCheatSettings?.enableWebcamProctoring) return;
-
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
-
-        setCameraStream(stream);
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error("Camera access error:", error);
-        toast.error("Camera access is required for this quiz");
-      }
-    };
-
-    startCamera();
-
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [attempt]);
-
-  // ==========================================
-  // SECURITY: Prevent copy-paste
-  // ==========================================
-  useEffect(() => {
-    if (!attempt?.quiz?.antiCheatSettings?.disableCopyPaste) return;
-
-    const preventCopyPaste = (e) => {
-      e.preventDefault();
-      toast.error("Copy-paste is disabled during quiz", { duration: 2000 });
-      return false;
-    };
-
-    document.addEventListener("copy", preventCopyPaste);
-    document.addEventListener("paste", preventCopyPaste);
-    document.addEventListener("cut", preventCopyPaste);
-
-    return () => {
-      document.removeEventListener("copy", preventCopyPaste);
-      document.removeEventListener("paste", preventCopyPaste);
-      document.removeEventListener("cut", preventCopyPaste);
-    };
-  }, [attempt]);
-
-  // ==========================================
-  // SECURITY: Prevent right-click
-  // ==========================================
-  useEffect(() => {
-    const preventRightClick = (e) => {
-      e.preventDefault();
-      return false;
-    };
-
-    document.addEventListener("contextmenu", preventRightClick);
-    return () => document.removeEventListener("contextmenu", preventRightClick);
-  }, []);
-
-  // ==========================================
-  // SECURITY: Fullscreen enforcement
+  // STEP 6: SECURITY - Fullscreen enforcement
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.enableFullScreen) return;
@@ -121,6 +56,11 @@ const QuizAttempt = () => {
         if (!document.fullscreenElement) {
           await document.documentElement.requestFullscreen();
           setIsFullScreen(true);
+
+          // Log fullscreen enter event
+          if (proctorConnected) {
+            await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_ENTER);
+          }
         }
       } catch (err) {
         console.error("Fullscreen error:", err);
@@ -128,7 +68,7 @@ const QuizAttempt = () => {
       }
     };
 
-    const handleFullScreenChange = () => {
+    const handleFullScreenChange = async () => {
       const isFS = !!document.fullscreenElement;
       setIsFullScreen(isFS);
 
@@ -136,6 +76,13 @@ const QuizAttempt = () => {
         toast.error("⚠️ You exited fullscreen! Please return to fullscreen mode!", {
           duration: 5000
         });
+
+        // Log fullscreen exit event
+        if (proctorConnected) {
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_EXIT, {
+            timestamp: Date.now()
+          });
+        }
 
         // Try to re-enter fullscreen after 2 seconds
         setTimeout(() => {
@@ -157,15 +104,72 @@ const QuizAttempt = () => {
         document.exitFullscreen().catch(() => { });
       }
     };
-  }, [attempt, submitting]);
+  }, [attempt, submitting, proctorConnected, attemptId]);
 
   // ==========================================
-  // SECURITY: Tab switch detection
+  // STEP 7: SECURITY - Camera Access
+  // ==========================================
+  useEffect(() => {
+    if (!attempt?.quiz?.antiCheatSettings?.enableWebcamProctoring) return;
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
+          audio: false
+        });
+
+        setCameraStream(stream);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+
+        // Log camera enabled event
+        if (proctorConnected) {
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_ENABLED);
+        }
+
+        toast.success("Camera enabled for proctoring", { duration: 2000 });
+
+      } catch (error) {
+        console.error("Camera access error:", error);
+        toast.error("⚠️ Camera access is required for this quiz!");
+
+        // Log camera blocked event
+        if (proctorConnected) {
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_BLOCKED, {
+            error: error.message
+          });
+        }
+
+        // Block quiz if camera is mandatory
+        setTimeout(() => {
+          navigate("/student/enrolled");
+        }, 3000);
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [attempt, proctorConnected, attemptId, navigate]);
+
+  // ==========================================
+  // STEP 10: SECURITY - Tab switch detection
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.enableTabSwitchDetection) return;
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.hidden && !isAutoSubmittingRef.current) {
         visibilityChangeCountRef.current += 1;
         const newCount = visibilityChangeCountRef.current;
@@ -173,11 +177,29 @@ const QuizAttempt = () => {
 
         const maxSwitches = attempt.quiz.antiCheatSettings.maxTabSwitches || 2;
 
+        // Log tab switch event
+        if (proctorConnected) {
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.TAB_SWITCH, {
+            count: newCount,
+            maxAllowed: maxSwitches
+          });
+        }
+
         if (newCount >= maxSwitches) {
           toast.error(
             `⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting quiz...`,
             { duration: 5000 }
           );
+
+          // Log limit exceeded event
+          if (proctorConnected) {
+            await proctorAPI.logEvent(
+              attemptId,
+              PROCTOR_EVENTS.TAB_SWITCH_LIMIT_EXCEEDED,
+              { finalCount: newCount }
+            );
+          }
+
           setTimeout(() => handleAutoSubmit(), 2000);
         } else {
           toast.warning(
@@ -193,36 +215,170 @@ const QuizAttempt = () => {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [attempt, tabSwitches]);
+  }, [attempt, tabSwitches, proctorConnected, attemptId]);
 
   // ==========================================
-  // Track time spent on each question
+  // STEP 11: SECURITY - Prevent copy-paste
   // ==========================================
   useEffect(() => {
-    questionStartTimeRef.current = Date.now();
+    if (!attempt?.quiz?.antiCheatSettings?.disableCopyPaste) return;
+
+    const preventCopy = async (e) => {
+      e.preventDefault();
+      toast.error("Copy is disabled during quiz", { duration: 2000 });
+
+      if (proctorConnected) {
+        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.COPY_ATTEMPT);
+      }
+      return false;
+    };
+
+    const preventPaste = async (e) => {
+      e.preventDefault();
+      toast.error("Paste is disabled during quiz", { duration: 2000 });
+
+      if (proctorConnected) {
+        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.PASTE_ATTEMPT);
+      }
+      return false;
+    };
+
+    const preventCut = (e) => {
+      e.preventDefault();
+      toast.error("Cut is disabled during quiz", { duration: 2000 });
+      return false;
+    };
+
+    document.addEventListener("copy", preventCopy);
+    document.addEventListener("paste", preventPaste);
+    document.addEventListener("cut", preventCut);
 
     return () => {
-      if (attempt?.selectedQuestions?.[currentQuestionIndex]) {
-        const questionId = attempt.selectedQuestions[currentQuestionIndex].question._id;
-        const timeSpent = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
-
-        setQuestionTimeTracking(prev => ({
-          ...prev,
-          [questionId]: (prev[questionId] || 0) + timeSpent
-        }));
-      }
+      document.removeEventListener("copy", preventCopy);
+      document.removeEventListener("paste", preventPaste);
+      document.removeEventListener("cut", preventCut);
     };
-  }, [currentQuestionIndex, attempt]);
+  }, [attempt, proctorConnected, attemptId]);
 
   // ==========================================
-  // Auto-save answers periodically
+  // SECURITY: Prevent right-click
+  // ==========================================
+  useEffect(() => {
+    const preventRightClick = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener("contextmenu", preventRightClick);
+    return () => document.removeEventListener("contextmenu", preventRightClick);
+  }, []);
+
+  // ==========================================
+  // SECURITY: Detect dev tools
+  // ==========================================
+  useEffect(() => {
+    const detectDevTools = async () => {
+      const threshold = 160;
+      const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+      const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+
+      if (widthThreshold || heightThreshold) {
+        if (proctorConnected && !isAutoSubmittingRef.current) {
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.DEV_TOOLS_OPEN);
+          toast.error("⚠️ Developer tools detected! This has been logged.", {
+            duration: 5000
+          });
+        }
+      }
+    };
+
+    const interval = setInterval(detectDevTools, 1000);
+    return () => clearInterval(interval);
+  }, [proctorConnected, attemptId]);
+
+  // ==========================================
+  // STEP 8 & 9: Initialize Proctoring
+  // ==========================================
+  useEffect(() => {
+    const initProctoring = async () => {
+      if (!attempt || !attemptId) return;
+
+      try {
+        // Generate proctor token
+        const tokenData = await proctorAPI.generateToken(attemptId);
+        proctorTokenRef.current = tokenData;
+
+        // Connect to socket
+        await socketService.connect(tokenData.token);
+
+        // Join proctor room
+        await socketService.joinProctorRoom(
+          attemptId,
+          tokenData.token,
+          tokenData.nonce
+        );
+
+        setProctorConnected(true);
+
+        // Log attempt start
+        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_START, {
+          quizId: attempt.quiz._id,
+          startTime: new Date().toISOString()
+        });
+
+        // Listen for admin commands
+        socketService.onAdminCommand(handleAdminCommand);
+
+      } catch (error) {
+        console.error("Proctoring initialization error:", error);
+        toast.error("Failed to initialize proctoring system");
+      }
+    };
+
+    if (attempt && !proctorConnected) {
+      initProctoring();
+    }
+
+    return () => {
+      if (proctorConnected) {
+        socketService.leaveProctorRoom(attemptId);
+        socketService.offAdminCommand(handleAdminCommand);
+      }
+    };
+  }, [attempt, attemptId, proctorConnected]);
+
+  // Handle admin commands from dashboard
+  const handleAdminCommand = async (data) => {
+    const { cmd, reason } = data;
+
+    switch (cmd) {
+      case 'terminate':
+        toast.error(`⚠️ Quiz terminated by admin. Reason: ${reason || 'Violation detected'}`, {
+          duration: 10000
+        });
+        await handleAutoSubmit();
+        break;
+
+      case 'warn':
+        toast.warning(`⚠️ Warning from admin: ${reason || 'Please follow quiz rules'}`, {
+          duration: 8000
+        });
+        break;
+
+      default:
+        console.log('Unknown admin command:', cmd);
+    }
+  };
+
+  // ==========================================
+  // STEP 14: Auto-save answers periodically
   // ==========================================
   useEffect(() => {
     if (!attemptId || !attempt || isAutoSubmittingRef.current) return;
 
     autoSaveIntervalRef.current = setInterval(() => {
       saveAnswersToServer();
-    }, 30000);
+    }, 30000); // Every 30 seconds
 
     return () => {
       if (autoSaveIntervalRef.current) {
@@ -246,7 +402,7 @@ const QuizAttempt = () => {
         tabSwitches: visibilityChangeCountRef.current
       });
 
-      console.log("Answers auto-saved successfully");
+      console.log("✅ Answers auto-saved successfully");
     } catch (error) {
       console.error("Auto-save error:", error);
     }
@@ -322,6 +478,9 @@ const QuizAttempt = () => {
     }
   };
 
+  // ==========================================
+  // STEP 15: Timer enforcement
+  // ==========================================
   const startTimer = () => {
     timerRef.current = setInterval(() => {
       setTimeRemaining(prev => {
@@ -352,6 +511,9 @@ const QuizAttempt = () => {
     lastActivityRef.current = Date.now();
   };
 
+  // ==========================================
+  // Auto-submit handler
+  // ==========================================
   const handleAutoSubmit = async () => {
     if (isAutoSubmittingRef.current) return;
 
@@ -360,10 +522,21 @@ const QuizAttempt = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
 
+    // Log auto-submit event
+    if (proctorConnected) {
+      await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT, {
+        reason: 'time_up_or_violation',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     toast.error("⏰ Time's up! Auto-submitting...", { duration: 5000 });
     await submitQuiz(true);
   };
 
+  // ==========================================
+  // STEP 16: Final submission
+  // ==========================================
   const submitQuiz = async (isAutoSubmit = false) => {
     if (isAutoSubmittingRef.current && !isAutoSubmit) return;
 
@@ -380,6 +553,18 @@ const QuizAttempt = () => {
         clientTimestamp: new Date().toISOString()
       }));
 
+      // Log submission attempt
+      if (proctorConnected) {
+        await proctorAPI.logEvent(
+          attemptId,
+          isAutoSubmit ? PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT : PROCTOR_EVENTS.ATTEMPT_SUBMIT,
+          {
+            answerCount: formattedAnswers.length,
+            timestamp: new Date().toISOString()
+          }
+        );
+      }
+
       const res = await quizzesAPI.submit(attemptId, {
         answers: formattedAnswers,
         tabSwitches: visibilityChangeCountRef.current,
@@ -389,6 +574,8 @@ const QuizAttempt = () => {
       });
 
       if (res.success) {
+        // STEP 17: Exit cleanup
+
         // Exit fullscreen
         if (document.fullscreenElement) {
           await document.exitFullscreen().catch(() => { });
@@ -397,6 +584,12 @@ const QuizAttempt = () => {
         // Stop camera stream
         if (cameraStream) {
           cameraStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Disconnect socket
+        if (proctorConnected) {
+          socketService.leaveProctorRoom(attemptId);
+          socketService.disconnect();
         }
 
         toast.success("✅ Quiz submitted successfully!");
@@ -493,7 +686,7 @@ const QuizAttempt = () => {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-gray-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-4">
       {/* Header */}
       <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
         <div className="flex justify-between items-center flex-wrap gap-4">
@@ -503,6 +696,12 @@ const QuizAttempt = () => {
               <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
               <span>•</span>
               <span>Answered: {getAnsweredCount()}/{totalQuestions}</span>
+              {proctorConnected && (
+                <>
+                  <span>•</span>
+                  <span className="text-green-600 font-medium">🟢 Proctoring Active</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -648,10 +847,11 @@ const QuizAttempt = () => {
       {/* Navigation */}
       <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
+
           <button
             onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
             disabled={currentQuestionIndex === 0 || isAutoSubmittingRef.current}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50"
           >
             ← Previous
           </button>
@@ -659,7 +859,7 @@ const QuizAttempt = () => {
           <button
             onClick={() => setShowNavigator(!showNavigator)}
             disabled={isAutoSubmittingRef.current}
-            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition disabled:opacity-50"
+            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
           >
             {showNavigator ? 'Hide' : 'Show'} Navigator
           </button>
@@ -668,7 +868,7 @@ const QuizAttempt = () => {
             <button
               onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
               disabled={isAutoSubmittingRef.current}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
             >
               Next →
             </button>
@@ -676,35 +876,35 @@ const QuizAttempt = () => {
             <button
               onClick={handleSubmit}
               disabled={submitting || isAutoSubmittingRef.current}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {submitting ? 'Submitting...' : 'Submit Quiz ✓'}
+              {submitting ? "Submitting..." : "Submit Quiz ✓"}
             </button>
           )}
         </div>
 
-        {/* Question Navigator */}
         {showNavigator && (
           <div className="border-t pt-4">
             <p className="text-sm text-gray-600 mb-3 font-semibold">Question Navigator</p>
+
             <div className="flex gap-2 flex-wrap">
               {attempt.selectedQuestions.map((q, idx) => (
                 <button
                   key={q.question?._id || idx}
                   onClick={() => setCurrentQuestionIndex(idx)}
                   disabled={isAutoSubmittingRef.current}
-                  className={`w-12 h-12 rounded-lg font-semibold transition disabled:opacity-50 ${idx === currentQuestionIndex
+                  className={`w-12 h-12 rounded-lg font-semibold transition ${idx === currentQuestionIndex
                     ? 'bg-blue-600 text-white ring-2 ring-blue-300'
                     : answers[q.question?._id]
                       ? 'bg-green-200 text-green-800 hover:bg-green-300'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
-                  title={answers[q.question?._id] ? 'Answered' : 'Not answered'}
                 >
                   {idx + 1}
                 </button>
               ))}
             </div>
+
             <div className="mt-4 flex gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-blue-600 rounded"></div>
