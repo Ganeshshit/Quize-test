@@ -5,14 +5,14 @@ import {
     Plus,
     Award,
     BookOpen,
-    TrendingUp,
     Filter,
     X,
     CheckCircle2,
     AlertCircle,
     Loader2,
     Target,
-    Zap
+    Zap,
+    TrendingUp
 } from "lucide-react";
 
 const QuestionBank = ({
@@ -44,23 +44,27 @@ const QuestionBank = ({
         switch (difficulty?.toLowerCase()) {
             case "easy":
                 return {
-                    color: "bg-green-100 text-green-700 border-green-200",
-                    icon: "🟢"
+                    color: "bg-emerald-100 text-emerald-700 border-emerald-300",
+                    icon: "🟢",
+                    gradient: "from-emerald-500 to-emerald-600"
                 };
             case "medium":
                 return {
-                    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-                    icon: "🟡"
+                    color: "bg-amber-100 text-amber-700 border-amber-300",
+                    icon: "🟡",
+                    gradient: "from-amber-500 to-amber-600"
                 };
             case "hard":
                 return {
-                    color: "bg-red-100 text-red-700 border-red-200",
-                    icon: "🔴"
+                    color: "bg-rose-100 text-rose-700 border-rose-300",
+                    icon: "🔴",
+                    gradient: "from-rose-500 to-rose-600"
                 };
             default:
                 return {
-                    color: "bg-gray-100 text-gray-700 border-gray-200",
-                    icon: "⚪"
+                    color: "bg-gray-100 text-gray-700 border-gray-300",
+                    icon: "⚪",
+                    gradient: "from-gray-500 to-gray-600"
                 };
         }
     };
@@ -68,63 +72,68 @@ const QuestionBank = ({
     const hasActiveFilters = selectedSubject !== "all" || selectedDifficulty !== "all" || search !== "";
 
     return (
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6 flex flex-col max-h-[80vh]">
-
+        <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="mb-6">
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-2.5 shadow-md">
-                            <Library className="w-6 h-6 text-white" />
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 p-6 mb-6 shadow-sm">
+                <div className="flex justify-between items-start mb-5">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-3 shadow-lg">
+                            <Library className="w-8 h-8 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900">Question Bank</h2>
-                            <p className="text-sm text-gray-500">Browse and add questions to your quiz</p>
+                            <h2 className="text-3xl font-bold text-gray-900">Question Bank</h2>
+                            <p className="text-sm text-gray-600 mt-1 font-medium">Browse and add questions to your quiz</p>
                         </div>
                     </div>
 
                     {bankLoading && (
-                        <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span className="font-medium">Loading...</span>
+                        <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-100 px-4 py-2 rounded-lg border-2 border-blue-300 shadow-sm">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span className="font-bold">Loading...</span>
                         </div>
                     )}
                 </div>
 
                 {/* Status Cards */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                            <BookOpen className="w-4 h-4 text-blue-600" />
-                            <span className="text-xs font-semibold text-blue-800">Total Questions</span>
+                <div className="grid grid-cols-3 gap-4 mb-5">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="bg-blue-600 p-2 rounded-lg">
+                                <BookOpen className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-sm font-bold text-blue-900">Total Questions</span>
                         </div>
-                        <p className="text-2xl font-bold text-blue-700">{questionBank.length}</p>
+                        <p className="text-3xl font-bold text-blue-700">{questionBank.length}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            <span className="text-xs font-semibold text-green-800">Available</span>
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-300 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="bg-emerald-600 p-2 rounded-lg">
+                                <CheckCircle2 className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-sm font-bold text-emerald-900">Available</span>
                         </div>
-                        <p className="text-2xl font-bold text-green-700">{availableQuestions.length}</p>
+                        <p className="text-3xl font-bold text-emerald-700">{availableQuestions.length}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Plus className="w-4 h-4 text-purple-600" />
-                            <span className="text-xs font-semibold text-purple-800">In Quiz</span>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="bg-purple-600 p-2 rounded-lg">
+                                <TrendingUp className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-sm font-bold text-purple-900">In Quiz</span>
                         </div>
-                        <p className="text-2xl font-bold text-purple-700">{quizQuestions.length}</p>
+                        <p className="text-3xl font-bold text-purple-700">{quizQuestions.length}</p>
                     </div>
                 </div>
 
                 {/* Search Bar */}
-                <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <div className="relative mb-4">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
                         type="text"
                         placeholder="Search questions by keyword..."
-                        className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="w-full border-2 border-gray-300 rounded-xl pl-12 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition disabled:bg-gray-100 disabled:cursor-not-allowed bg-white shadow-sm"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         disabled={bankLoading}
@@ -132,7 +141,7 @@ const QuestionBank = ({
                     {search && (
                         <button
                             onClick={() => setSearch("")}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-gray-100 p-1 rounded-full hover:bg-gray-200 transition"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -140,12 +149,12 @@ const QuestionBank = ({
                 </div>
 
                 {/* Filter Toggle & Clear */}
-                <div className="flex gap-2 mb-3">
+                <div className="flex gap-3 flex-wrap mb-4">
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition ${showFilters
-                                ? "bg-purple-100 text-purple-700 border border-purple-300"
-                                : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
+                        className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-sm ${showFilters
+                                ? "bg-purple-600 text-white border-2 border-purple-700"
+                                : "bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50"
                             }`}
                         disabled={bankLoading}
                     >
@@ -160,29 +169,29 @@ const QuestionBank = ({
                                 setSelectedDifficulty("all");
                                 setSearch("");
                             }}
-                            className="px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition"
+                            className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-rose-100 text-rose-700 border-2 border-rose-300 hover:bg-rose-200 transition shadow-sm"
                             disabled={bankLoading}
                         >
                             <X className="w-4 h-4" />
-                            Clear All
+                            Clear All Filters
                         </button>
                     )}
                 </div>
 
                 {/* Filters Panel */}
                 {showFilters && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="bg-white border-2 border-gray-200 rounded-xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 shadow-md">
                         <div className="grid grid-cols-2 gap-4">
                             {/* Subject Filter */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                                <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
                                     <Target className="w-4 h-4 text-purple-600" />
                                     Subject
                                 </label>
                                 <select
                                     value={selectedSubject}
                                     onChange={(e) => setSelectedSubject(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition"
+                                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition shadow-sm"
                                     disabled={bankLoading}
                                 >
                                     <option value="all">All Subjects</option>
@@ -196,14 +205,14 @@ const QuestionBank = ({
 
                             {/* Difficulty Filter */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                                <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
                                     <Zap className="w-4 h-4 text-orange-600" />
                                     Difficulty
                                 </label>
                                 <select
                                     value={selectedDifficulty}
                                     onChange={(e) => setSelectedDifficulty(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition"
+                                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition shadow-sm"
                                     disabled={bankLoading}
                                 >
                                     <option value="all">All Difficulties</option>
@@ -217,27 +226,27 @@ const QuestionBank = ({
                 )}
             </div>
 
-            {/* Questions List */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+            {/* Questions List - Full Width with Better Scrolling */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4">
                 {bankLoading ? (
-                    <div className="text-center text-gray-500 py-16">
-                        <div className="bg-purple-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                            <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+                    <div className="text-center text-gray-500 py-20 bg-purple-50 rounded-xl border-2 border-dashed border-purple-300">
+                        <div className="bg-purple-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                            <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
                         </div>
-                        <p className="font-semibold text-lg text-gray-700">Loading questions...</p>
+                        <p className="font-bold text-xl text-gray-700">Loading questions...</p>
                         <p className="text-sm mt-2 text-gray-500">Please wait a moment</p>
                     </div>
                 ) : filteredQuestions.length === 0 ? (
-                    <div className="text-center text-gray-500 py-16">
-                        <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                            <AlertCircle className="w-10 h-10 text-gray-400" />
+                    <div className="text-center text-gray-500 py-20 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                        <div className="bg-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                            <AlertCircle className="w-12 h-12 text-gray-400" />
                         </div>
-                        <p className="font-semibold text-lg text-gray-700">
+                        <p className="font-bold text-xl text-gray-700 mb-2">
                             {availableQuestions.length === 0 && !hasActiveFilters
                                 ? "All questions added!"
                                 : "No matching questions"}
                         </p>
-                        <p className="text-sm mt-2 text-gray-500">
+                        <p className="text-sm text-gray-500">
                             {availableQuestions.length === 0 && !hasActiveFilters
                                 ? "All available questions are already in your quiz"
                                 : "Try adjusting your filters or search terms"}
@@ -250,25 +259,27 @@ const QuestionBank = ({
                         return (
                             <div
                                 key={q._id}
-                                className="border border-gray-200 rounded-xl p-4 bg-white hover:shadow-lg hover:border-purple-300 transition-all duration-200 group"
+                                className="border-2 border-gray-200 rounded-xl p-6 bg-white hover:shadow-xl hover:border-purple-400 transition-all duration-200 group"
                             >
-                                <p className="font-medium text-gray-900 mb-3 leading-relaxed text-base">
+                                {/* Question Text */}
+                                <p className="font-semibold text-gray-900 mb-4 leading-relaxed text-lg">
                                     {q.prompt}
                                 </p>
 
-                                <div className="flex justify-between items-center flex-wrap gap-3">
-                                    <div className="flex gap-2 flex-wrap text-xs">
-                                        <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium border border-blue-200 flex items-center gap-1">
-                                            <Award className="w-3 h-3" />
+                                {/* Metadata and Add Button */}
+                                <div className="flex justify-between items-center flex-wrap gap-4">
+                                    <div className="flex gap-2.5 flex-wrap text-xs">
+                                        <span className="bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-bold border-2 border-blue-300 flex items-center gap-1.5 shadow-sm">
+                                            <Award className="w-4 h-4" />
                                             {q.marks || 1} marks
                                         </span>
 
-                                        <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full font-medium border border-purple-200 flex items-center gap-1">
-                                            <BookOpen className="w-3 h-3" />
+                                        <span className="bg-purple-100 text-purple-800 px-3 py-1.5 rounded-full font-bold border-2 border-purple-300 flex items-center gap-1.5 shadow-sm">
+                                            <BookOpen className="w-4 h-4" />
                                             {q.subject?.name || "No Subject"}
                                         </span>
 
-                                        <span className={`px-2.5 py-1 rounded-full font-medium border ${diffConfig.color} flex items-center gap-1`}>
+                                        <span className={`px-3 py-1.5 rounded-full font-bold border-2 ${diffConfig.color} flex items-center gap-1.5 shadow-sm`}>
                                             <span>{diffConfig.icon}</span>
                                             <span className="capitalize">{q.difficulty || "medium"}</span>
                                         </span>
@@ -276,7 +287,7 @@ const QuestionBank = ({
 
                                     <button
                                         onClick={() => onAdd(q._id)}
-                                        className="px-4 py-2 text-sm bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-medium shadow-md hover:shadow-lg flex items-center gap-1.5 group-hover:scale-105"
+                                        className="px-5 py-2.5 text-sm bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all font-bold shadow-lg hover:shadow-xl flex items-center gap-2 group-hover:scale-105 transform"
                                     >
                                         <Plus className="w-4 h-4" />
                                         Add to Quiz
@@ -290,10 +301,10 @@ const QuestionBank = ({
 
             {/* Footer Info */}
             {!bankLoading && filteredQuestions.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 text-center">
-                        Showing <span className="font-semibold text-gray-700">{filteredQuestions.length}</span> of{" "}
-                        <span className="font-semibold text-gray-700">{availableQuestions.length}</span> available questions
+                <div className="mt-4 pt-4 border-t-2 border-gray-200 bg-gray-50 rounded-lg px-4 py-3">
+                    <p className="text-sm text-gray-600 text-center font-medium">
+                        Showing <span className="font-bold text-purple-700">{filteredQuestions.length}</span> of{" "}
+                        <span className="font-bold text-purple-700">{availableQuestions.length}</span> available questions
                     </p>
                 </div>
             )}

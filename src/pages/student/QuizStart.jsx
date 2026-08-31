@@ -37,7 +37,53 @@ const QuizStart = () => {
 
   const handleStart = async () => {
     setStarting(true);
+
     try {
+      // 1️⃣ CRITICAL: Request Fullscreen FIRST (inside user gesture)
+      if (quiz?.antiCheatSettings?.enableFullScreen) {
+        try {
+          await document.documentElement.requestFullscreen();
+          toast.success("Fullscreen mode activated", { duration: 2000 });
+        } catch (fsError) {
+          console.error("Fullscreen error:", fsError);
+          toast.error("Fullscreen mode is required for this quiz. Please allow fullscreen access.");
+          setStarting(false);
+          return;
+        }
+      }
+
+      // 2️⃣ CRITICAL: Request Camera Access FIRST (inside user gesture)
+      if (quiz?.antiCheatSettings?.enableWebcamProctoring) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: 'user'
+            },
+            audio: false
+          });
+
+          // Stop the stream immediately - we just needed permission
+          // QuizAttempt will request it again and reuse the permission
+          stream.getTracks().forEach(track => track.stop());
+
+          toast.success("Camera access granted", { duration: 2000 });
+        } catch (camError) {
+          console.error("Camera error:", camError);
+
+          // Exit fullscreen if we entered it
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          }
+
+          toast.error("Camera access is required for this quiz. Please allow camera permissions.");
+          setStarting(false);
+          return;
+        }
+      }
+
+      // 3️⃣ Now start the quiz attempt (API call)
       const res = await quizzesAPI.start(id);
 
       if (res.success) {
@@ -51,10 +97,19 @@ const QuizStart = () => {
         // Navigate to quiz attempt page
         navigate(`/student/attempt/${res.data._id}`);
       } else {
+        // Exit fullscreen on error
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
         toast.error(res.error || "Failed to start quiz");
       }
     } catch (error) {
       console.error("Start quiz error:", error);
+
+      // Exit fullscreen on error
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
 
       const errorData = error?.response?.data;
       const errorMsg = errorData?.error || "Unable to start quiz";
@@ -62,9 +117,7 @@ const QuizStart = () => {
       // ✅ Handle expired attempt case
       if (errorData?.timeExpired) {
         toast.error("Your previous attempt has expired. Redirecting to results...");
-        // Give user a moment to read the message
         setTimeout(() => {
-          // Refresh the quiz details to get updated attempt count
           fetchQuizDetails();
         }, 2000);
       } else {
@@ -169,20 +222,46 @@ const QuizStart = () => {
               <li>Copy-paste is disabled during the quiz</li>
             )}
             {quiz.antiCheatSettings?.enableFullScreen && (
-              <li>Full-screen mode is required</li>
+              <li className="text-orange-600 font-medium">⚠️ Full-screen mode is required - permission will be requested</li>
+            )}
+            {quiz.antiCheatSettings?.enableWebcamProctoring && (
+              <li className="text-orange-600 font-medium">⚠️ Camera access is required - permission will be requested</li>
             )}
             <li>Answer all questions before submitting</li>
             <li>You can review your answers before final submission</li>
           </ul>
         </div>
 
+        {/* Permission Pre-check Notice */}
+        {(quiz.antiCheatSettings?.enableFullScreen || quiz.antiCheatSettings?.enableWebcamProctoring) && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-blue-800 font-medium mb-2">
+              🔐 Permission Requirements
+            </p>
+            <p className="text-blue-700 text-sm">
+              This quiz requires special permissions. When you click "Start Quiz", you will be asked to:
+            </p>
+            <ul className="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside ml-2">
+              {quiz.antiCheatSettings?.enableFullScreen && (
+                <li>Allow fullscreen mode</li>
+              )}
+              {quiz.antiCheatSettings?.enableWebcamProctoring && (
+                <li>Allow camera access for proctoring</li>
+              )}
+            </ul>
+            <p className="text-blue-600 text-xs mt-2 italic">
+              These permissions are mandatory to proceed with the quiz.
+            </p>
+          </div>
+        )}
+
         {/* Start Button */}
         <button
           disabled={starting || !canAttempt}
           onClick={handleStart}
           className={`w-full py-3 rounded-lg text-lg font-medium transition mt-6 ${!canAttempt
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
             }`}
         >
           {starting ? "Starting Quiz..." : !canAttempt ? "No Attempts Remaining" : "Start Quiz"}
