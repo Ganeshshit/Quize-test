@@ -25,11 +25,13 @@ class AuthService {
             return {
                 success: true,
                 data: response,
+                message: response.message || 'Registration successful',
             };
         } catch (error) {
             return {
                 success: false,
-                error: error.response?.data?.message || 'Registration failed',
+                error: error.response?.data?.error || error.response?.data?.message || 'Registration failed',
+                message: error.response?.data?.message,
             };
         }
     }
@@ -55,11 +57,13 @@ class AuthService {
             return {
                 success: true,
                 data: response,
+                message: response.message || 'Login successful',
             };
         } catch (error) {
             return {
                 success: false,
-                error: error.response?.data?.message || 'Login failed',
+                error: error.response?.data?.error || error.response?.data?.message || 'Login failed',
+                message: error.response?.data?.message,
             };
         }
     }

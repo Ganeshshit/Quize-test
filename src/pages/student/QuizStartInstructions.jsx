@@ -2,6 +2,23 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { quizzesAPI } from "../../api/quizzes.api";
 import { toast } from "react-hot-toast";
+import { 
+  XCircle, 
+  Clock, 
+  Ban, 
+  ClipboardList, 
+  Timer, 
+  CheckCircle, 
+  AlertTriangle, 
+  Monitor, 
+  HardDrive, 
+  Lock, 
+  Camera, 
+  Rocket,
+  ArrowLeft,
+  Check,
+  X
+} from "lucide-react";
 
 const QuizStartInstructions = () => {
     const { id: quizId } = useParams();
@@ -119,7 +136,7 @@ const QuizStartInstructions = () => {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
-                    <div className="text-6xl mb-4">❌</div>
+                    <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
                     <p className="text-xl text-red-600 font-semibold mb-4">Quiz not found</p>
                     <button
                         onClick={() => navigate("/student/enrolled")}
@@ -150,9 +167,10 @@ const QuizStartInstructions = () => {
                         </div>
                         <button
                             onClick={() => navigate("/student/enrolled")}
-                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center"
                         >
-                            ← Back
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back
                         </button>
                     </div>
 
@@ -183,7 +201,7 @@ const QuizStartInstructions = () => {
                 {!isAvailable && (
                     <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-lg mb-6">
                         <div className="flex items-center">
-                            <span className="text-2xl mr-3">⏰</span>
+                            <Clock className="w-6 h-6 text-orange-600 mr-3" />
                             <div>
                                 <p className="font-semibold text-orange-800">Quiz Not Available</p>
                                 <p className="text-sm text-orange-700">
@@ -197,7 +215,7 @@ const QuizStartInstructions = () => {
                 {!hasAttemptsLeft && (
                     <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
                         <div className="flex items-center">
-                            <span className="text-2xl mr-3">🚫</span>
+                            <Ban className="w-6 h-6 text-red-600 mr-3" />
                             <div>
                                 <p className="font-semibold text-red-800">No Attempts Remaining</p>
                                 <p className="text-sm text-red-700">You have used all available attempts for this quiz</p>
@@ -209,13 +227,16 @@ const QuizStartInstructions = () => {
                 {/* Instructions */}
                 <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
                     <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                        <span className="text-3xl mr-3">📋</span>
+                        <ClipboardList className="w-8 h-8 mr-3 text-blue-600" />
                         Quiz Instructions
                     </h2>
 
                     <div className="space-y-4 text-gray-700">
                         <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                            <p className="font-semibold text-blue-800 mb-2">⏱️ Time Management</p>
+                            <p className="font-semibold text-blue-800 mb-2 flex items-center">
+                                <Timer className="w-5 h-5 mr-2" />
+                                Time Management
+                            </p>
                             <ul className="list-disc list-inside space-y-1 text-sm">
                                 <li>You have <strong>{quiz.durationMinutes} minutes</strong> to complete this quiz</li>
                                 <li>Timer starts immediately when you begin the quiz</li>
@@ -225,7 +246,10 @@ const QuizStartInstructions = () => {
                         </div>
 
                         <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                            <p className="font-semibold text-green-800 mb-2">✅ Answering Questions</p>
+                            <p className="font-semibold text-green-800 mb-2 flex items-center">
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                Answering Questions
+                            </p>
                             <ul className="list-disc list-inside space-y-1 text-sm">
                                 <li>Read each question carefully before answering</li>
                                 <li>You can navigate between questions using Previous/Next buttons</li>
@@ -237,7 +261,10 @@ const QuizStartInstructions = () => {
 
                         {quiz.antiCheatSettings?.enableTabSwitchDetection && (
                             <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500">
-                                <p className="font-semibold text-orange-800 mb-2">⚠️ Tab Switch Detection</p>
+                                <p className="font-semibold text-orange-800 mb-2 flex items-center">
+                                    <AlertTriangle className="w-5 h-5 mr-2" />
+                                    Tab Switch Detection
+                                </p>
                                 <ul className="list-disc list-inside space-y-1 text-sm">
                                     <li>Do NOT switch tabs or windows during the quiz</li>
                                     <li>You are allowed <strong>{quiz.antiCheatSettings.maxTabSwitches || 2} warnings</strong></li>
@@ -249,7 +276,10 @@ const QuizStartInstructions = () => {
 
                         {quiz.antiCheatSettings?.enableFullScreen && (
                             <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
-                                <p className="font-semibold text-purple-800 mb-2">🖥️ Fullscreen Mode</p>
+                                <p className="font-semibold text-purple-800 mb-2 flex items-center">
+                                    <Monitor className="w-5 h-5 mr-2" />
+                                    Fullscreen Mode
+                                </p>
                                 <ul className="list-disc list-inside space-y-1 text-sm">
                                     <li>Fullscreen mode is <strong>mandatory</strong> for this quiz</li>
                                     <li>Click "Enable Fullscreen" below before starting</li>
@@ -261,7 +291,10 @@ const QuizStartInstructions = () => {
 
                         {quiz.antiCheatSettings?.disableCopyPaste && (
                             <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
-                                <p className="font-semibold text-red-800 mb-2">🚫 Restrictions</p>
+                                <p className="font-semibold text-red-800 mb-2 flex items-center">
+                                    <Ban className="w-5 h-5 mr-2" />
+                                    Restrictions
+                                </p>
                                 <ul className="list-disc list-inside space-y-1 text-sm">
                                     <li>Copy-paste is disabled</li>
                                     <li>Right-click is disabled</li>
@@ -271,7 +304,10 @@ const QuizStartInstructions = () => {
                         )}
 
                         <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-500">
-                            <p className="font-semibold text-gray-800 mb-2">💾 Auto-Save Feature</p>
+                            <p className="font-semibold text-gray-800 mb-2 flex items-center">
+                                <HardDrive className="w-5 h-5 mr-2" />
+                                Auto-Save Feature
+                            </p>
                             <ul className="list-disc list-inside space-y-1 text-sm">
                                 <li>Your answers are automatically saved every 30 seconds</li>
                                 <li>If connection is lost, your progress will be restored</li>
@@ -284,7 +320,10 @@ const QuizStartInstructions = () => {
                 {/* Security Setup */}
                 {isAvailable && hasAttemptsLeft && (
                     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">🔒 Security Setup</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                            <Lock className="w-7 h-7 mr-3 text-gray-700" />
+                            Security Setup
+                        </h2>
 
                         <div className="space-y-4">
                             {/* Camera Access */}
@@ -292,12 +331,16 @@ const QuizStartInstructions = () => {
                                 <div className="border rounded-lg p-4">
                                     <div className="flex items-center justify-between mb-3">
                                         <div>
-                                            <p className="font-semibold text-gray-800">📹 Camera Access</p>
+                                            <p className="font-semibold text-gray-800 flex items-center">
+                                                <Camera className="w-5 h-5 mr-2" />
+                                                Camera Access
+                                            </p>
                                             <p className="text-sm text-gray-600">Required for proctoring</p>
                                         </div>
                                         {cameraAccess ? (
-                                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                                                ✓ Enabled
+                                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold flex items-center">
+                                                <Check className="w-4 h-4 mr-1" />
+                                                Enabled
                                             </span>
                                         ) : (
                                             <button
@@ -324,12 +367,16 @@ const QuizStartInstructions = () => {
                                 <div className="border rounded-lg p-4">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="font-semibold text-gray-800">🖥️ Fullscreen Mode</p>
+                                            <p className="font-semibold text-gray-800 flex items-center">
+                                                <Monitor className="w-5 h-5 mr-2" />
+                                                Fullscreen Mode
+                                            </p>
                                             <p className="text-sm text-gray-600">Required for quiz</p>
                                         </div>
                                         {fullscreenReady ? (
-                                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                                                ✓ Enabled
+                                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold flex items-center">
+                                                <Check className="w-4 h-4 mr-1" />
+                                                Enabled
                                             </span>
                                         ) : (
                                             <button
@@ -375,9 +422,16 @@ const QuizStartInstructions = () => {
                                 (quiz.antiCheatSettings?.enableWebcamProctoring && !cameraAccess) ||
                                 (quiz.antiCheatSettings?.enableFullScreen && !fullscreenReady)
                             }
-                            className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold text-lg hover:bg-gray-100 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                            className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold text-lg hover:bg-gray-100 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex items-center justify-center mx-auto"
                         >
-                            {starting ? "Starting Quiz..." : "🚀 Start Quiz Now"}
+                            {starting ? (
+                                "Starting Quiz..."
+                            ) : (
+                                <>
+                                    <Rocket className="w-5 h-5 mr-2" />
+                                    Start Quiz Now
+                                </>
+                            )}
                         </button>
                         <p className="text-white text-sm mt-3">
                             {!agreed && "Please accept the terms and conditions"}

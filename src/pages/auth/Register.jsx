@@ -1,413 +1,392 @@
 import React, { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
-import ParticlesBackground from "../../components/ParticlesBackground";
+import toast from "react-hot-toast";
+import JobHeroIllustration from "../../components/comon/JobHeroIllustration";
 
 const Register = () => {
-    const { register, isLoading, error } = useAuth();
+    const { register, isLoading } = useAuth();
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
-        rollNo: "",
-        registrationNo: "",
-        semester: "",
-        department: "",
-        batch: "",
-        softwareSkills: [{ name: "", proficiency: "" }],
-        programmingLanguages: [{ language: "", experience: "" }],
-        phone: "",
-        gender: "",
-        dateOfBirth: "",
-        address: {
-            street: "",
-            city: "",
-            state: "",
-            zipCode: "",
-            country: "",
-        },
-        cgpa: "",
-        previousEducation: [{ degree: "", institution: "", year: "", percentage: "" }],
+        phoneNo: "",
+        usn: "",
+        collegeName: "",
     });
 
-    // Handle normal + address fields
+    const [validationErrors, setValidationErrors] = useState({});
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-
-        if (name.startsWith("address.")) {
-            const key = name.split(".")[1];
-            setFormData({
-                ...formData,
-                address: { ...formData.address, [key]: value },
-            });
-        } else {
-            setFormData({ ...formData, [name]: value });
+        setFormData({ ...formData, [name]: value });
+        // Clear validation error when user starts typing
+        if (validationErrors[name]) {
+            setValidationErrors({ ...validationErrors, [name]: "" });
         }
     };
 
-    // FIXED — Handles array updates for skills/languages/education
-    const handleArrayChange = (e, index, key) => {
-        const updated = [...formData[key]];
-        const field = e.target.name.split(".")[1];
-        updated[index][field] = e.target.value;
-        setFormData({ ...formData, [key]: updated });
+    const validateForm = () => {
+        const errors = {};
+
+        // Name validation
+        if (!formData.name.trim()) {
+            errors.name = "Name is required";
+        }
+
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email.trim()) {
+            errors.email = "Email is required";
+        } else if (!emailRegex.test(formData.email)) {
+            errors.email = "Please enter a valid email";
+        }
+
+        // Password validation (strong password requirements)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!formData.password) {
+            errors.password = "Password is required";
+        } else if (!passwordRegex.test(formData.password)) {
+            errors.password = "Password must be at least 8 characters with uppercase, lowercase, number, and special character";
+        }
+
+        // Phone number validation (10 digits)
+        const phoneRegex = /^\d{10}$/;
+        if (!formData.phoneNo.trim()) {
+            errors.phoneNo = "Phone number is required";
+        } else if (!phoneRegex.test(formData.phoneNo)) {
+            errors.phoneNo = "Phone number must be exactly 10 digits";
+        }
+
+        // USN validation
+        if (!formData.usn.trim()) {
+            errors.usn = "USN is required";
+        }
+
+        // College name validation
+        if (!formData.collegeName.trim()) {
+            errors.collegeName = "College name is required";
+        }
+
+        setValidationErrors(errors);
+        
+        // Show toast for first validation error if any
+        if (Object.keys(errors).length > 0) {
+            const firstError = Object.values(errors)[0];
+            toast.error(firstError);
+        }
+        
+        return Object.keys(errors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!validateForm()) {
+            return;
+        }
+
         const payload = {
-            ...formData,
-            semester: Number(formData.semester),
-            cgpa: Number(formData.cgpa),
-
-            previousEducation: [
-                {
-                    degree: formData.previousEducation[0].degree,
-                    institution: formData.previousEducation[0].institution,
-                    year: Number(formData.previousEducation[0].year),
-                    percentage: Number(formData.previousEducation[0].percentage),
-                },
-            ],
-
-            programmingLanguages: [
-                {
-                    language: formData.programmingLanguages[0].language,
-                    experience: formData.programmingLanguages[0].experience,
-                },
-            ],
-
-            softwareSkills: [
-                {
-                    name: formData.softwareSkills[0].name,
-                    proficiency: formData.softwareSkills[0].proficiency,
-                },
-            ],
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            phoneNo: formData.phoneNo,
+            usn: formData.usn,
+            collegeName: formData.collegeName,
         };
 
-        console.log("FINAL PAYLOAD:", payload); // Debug
-
         const result = await register(payload);
-        if (result.success) navigate("/dashboard");
+        
+        if (result.success) {
+            toast.success(result.message || "Registration successful! Please verify your email.");
+            setTimeout(() => {
+                navigate("/dashboard");
+            }, 2000);
+        } else {
+            toast.error(result.error || "Registration failed. Please try again.");
+        }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#080c1b] relative overflow-hidden px-4">
-            <ParticlesBackground />
+        <div className="min-h-screen flex bg-white">
+            <style>{`
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-5px); }
+                    75% { transform: translateX(5px); }
+                }
+                .animate-shake {
+                    animation: shake 0.3s ease-in-out;
+                }
+                .form-group {
+                    animation: fadeSlideUp 0.6s ease-out forwards;
+                    opacity: 0;
+                }
+                .form-group:nth-child(1) { animation-delay: 0.1s; }
+                .form-group:nth-child(2) { animation-delay: 0.2s; }
+                .form-group:nth-child(3) { animation-delay: 0.3s; }
+                .form-group:nth-child(4) { animation-delay: 0.4s; }
+                .form-group:nth-child(5) { animation-delay: 0.5s; }
+                .form-group:nth-child(6) { animation-delay: 0.6s; }
+                @keyframes fadeSlideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                @keyframes pulse-border {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+                    50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+                }
+                .input-focused {
+                    animation: pulse-border 2s infinite;
+                }
+                @keyframes slide-up-content {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                .content-animate {
+                    animation: slide-up-content 0.8s ease-out 0.5s forwards;
+                    opacity: 0;
+                }
+                @keyframes button-glow {
+                    0%, 100% { box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }
+                    50% { box-shadow: 0 4px 25px rgba(37, 99, 235, 0.5); }
+                }
+                .button-glow {
+                    animation: button-glow 2s ease-in-out infinite;
+                }
+            `}</style>
+            {/* Left Side - Illustration */}
+            <JobHeroIllustration />
 
-            <div className="relative w-full max-w-3xl">
-                <div className="absolute inset-0 rounded-3xl animate-pulse bg-gradient-to-r from-purple-600 to-blue-600 blur-2xl opacity-30"></div>
-
-                <div className="relative bg-white/10 backdrop-blur-xl border border-purple-500/20 shadow-[0_0_30px_#4f46e5] rounded-3xl p-10 text-white">
-
-                    <h2 className="typing-title text-3xl font-extrabold text-center mb-8 text-purple-300">
-                        Create Your Account
-                    </h2>
-
-                    {error && (
-                        <p className="bg-red-800/40 text-red-400 p-2 rounded mb-4 text-center border border-red-500">
-                            {error}
+            {/* Right Side - Registration Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-white">
+                <div className="w-full max-w-md">
+                    <div className="mb-8 content-animate">
+                        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                            Create Your Account
+                        </h1>
+                        <p className="text-gray-600">
+                            Join us to start your learning journey
                         </p>
-                    )}
+                    </div>
 
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleSubmit} className="space-y-4">
 
                         {/* NAME */}
-                        <div>
-                            <label className="text-gray-300">Full Name</label>
-                            <input
-                                required
-                                name="name"
-                                className="input-dark"
-                                placeholder="Enter full name"
-                                value={formData.name}
-                                onChange={handleChange}
-                            />
+                        <div className="form-group">
+                            <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
+                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                Full Name <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="name"
+                                    className={`w-full border ${validationErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    placeholder="Enter your full name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    onFocus={(e) => e.target.classList.add('input-focused')}
+                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                />
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {validationErrors.name && (
+                                <p className="text-red-600 text-xs mt-1 animate-shake">{validationErrors.name}</p>
+                            )}
                         </div>
 
                         {/* EMAIL */}
-                        <div>
-                            <label className="text-gray-300">Email</label>
-                            <input
-                                required
-                                name="email"
-                                type="email"
-                                className="input-dark"
-                                placeholder="Enter email"
-                                value={formData.email}
-                                onChange={handleChange}
-                            />
+                        <div className="form-group">
+                            <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
+                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                Email Address <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="email"
+                                    type="email"
+                                    className={`w-full border ${validationErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    placeholder="Enter your email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    onFocus={(e) => e.target.classList.add('input-focused')}
+                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                />
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {validationErrors.email && (
+                                <p className="text-red-600 text-xs mt-1 animate-shake">{validationErrors.email}</p>
+                            )}
                         </div>
 
                         {/* PASSWORD */}
-                        <div>
-                            <label className="text-gray-300">Password</label>
-                            <input
-                                required
-                                type="password"
-                                name="password"
-                                className="input-dark"
-                                placeholder="Password"
-                                value={formData.password}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* PHONE */}
-                        <div>
-                            <label className="text-gray-300">Phone</label>
-                            <input
-                                name="phone"
-                                className="input-dark"
-                                placeholder="Phone number"
-                                value={formData.phone}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* ROLL NO */}
-                        <div>
-                            <label className="text-gray-300">Roll No</label>
-                            <input
-                                required
-                                name="rollNo"
-                                className="input-dark"
-                                placeholder="Roll number"
-                                value={formData.rollNo}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* REGISTRATION NO */}
-                        <div>
-                            <label className="text-gray-300">Registration No</label>
-                            <input
-                                required
-                                name="registrationNo"
-                                className="input-dark"
-                                placeholder="Registration number"
-                                value={formData.registrationNo}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* SEMESTER */}
-                        <div>
-                            <label className="text-gray-300">Semester</label>
-                            <input
-                                required
-                                name="semester"
-                                className="input-dark"
-                                placeholder="Semester"
-                                value={formData.semester}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* DEPARTMENT */}
-                        <div>
-                            <label className="text-gray-300">Department</label>
-                            <input
-                                required
-                                name="department"
-                                className="input-dark"
-                                placeholder="Department"
-                                value={formData.department}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* BATCH */}
-                        <div>
-                            <label className="text-gray-300">Batch</label>
-                            <input
-                                required
-                                name="batch"
-                                className="input-dark"
-                                placeholder="Batch year"
-                                value={formData.batch}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* DOB */}
-                        <div>
-                            <label className="text-gray-300">Date of Birth</label>
-                            <input
-                                name="dateOfBirth"
-                                type="date"
-                                className="input-dark"
-                                value={formData.dateOfBirth}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        {/* GENDER */}
-                        <div>
-                            <label className="text-gray-300">Gender</label>
-                            <select
-                                name="gender"
-                                className="input-dark"
-                                value={formData.gender}
-                                onChange={handleChange}
-                            >
-                                <option value="">Select gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-
-                        {/* ADDRESS */}
-                        <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {[
-                                ["address.street", "Street"],
-                                ["address.city", "City"],
-                                ["address.state", "State"],
-                                ["address.zipCode", "ZIP Code"],
-                                ["address.country", "Country"],
-                            ].map(([name, label]) => (
-                                <div key={name}>
-                                    <label className="text-gray-300">{label}</label>
-                                    <input
-                                        name={name}
-                                        className="input-dark"
-                                        placeholder={label}
-                                        onChange={handleChange}
-                                    />
+                        <div className="form-group">
+                            <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
+                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                Password <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="password"
+                                    type="password"
+                                    className={`w-full border ${validationErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    placeholder="Create a strong password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    onFocus={(e) => e.target.classList.add('input-focused')}
+                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                />
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
                                 </div>
-                            ))}
+                            </div>
+                            {validationErrors.password && (
+                                <p className="text-red-600 text-xs mt-1 animate-shake">{validationErrors.password}</p>
+                            )}
+                            <p className="text-gray-500 text-xs mt-1">
+                                8+ chars with uppercase, lowercase, number & special character
+                            </p>
                         </div>
 
-                        {/* CGPA */}
-                        <div>
-                            <label className="text-gray-300">CGPA</label>
-                            <input
-                                name="cgpa"
-                                className="input-dark"
-                                placeholder="CGPA"
-                                value={formData.cgpa}
-                                onChange={handleChange}
-                            />
+                        {/* PHONE NUMBER */}
+                        <div className="form-group">
+                            <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
+                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                Phone Number <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="phoneNo"
+                                    type="tel"
+                                    maxLength="10"
+                                    className={`w-full border ${validationErrors.phoneNo ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    placeholder="10-digit phone number"
+                                    value={formData.phoneNo}
+                                    onChange={handleChange}
+                                    onFocus={(e) => e.target.classList.add('input-focused')}
+                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                />
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13 2.257a1 1 0 001.21.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 012 2h3.28a1 1 0 01.948-.684l1.498-4.493a1 1 0 00-.502-1.21l-2.257-1.13a11.042 11.042 0 00-5.516-5.516l-1.13-2.257a1 1 0 00-1.21-.502l-4.493-1.498a1 1 0 01-.684-.949V5a2 2 0 012-2z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {validationErrors.phoneNo && (
+                                <p className="text-red-600 text-xs mt-1 animate-shake">{validationErrors.phoneNo}</p>
+                            )}
                         </div>
 
-                        {/* SOFTWARE SKILL */}
-                        <div>
-                            <label className="text-gray-300">Software Skill</label>
-                            <input
-                                required
-                                name="softwareSkills.name"
-                                className="input-dark"
-                                placeholder="Skill (e.g. React)"
-                                value={formData.softwareSkills[0].name}
-                                onChange={(e) => handleArrayChange(e, 0, "softwareSkills")}
-                            />
-
-                            <select
-                                required
-                                name="softwareSkills.proficiency"
-                                className="input-dark mt-2"
-                                value={formData.softwareSkills[0].proficiency}
-                                onChange={(e) => handleArrayChange(e, 0, "softwareSkills")}
-                            >
-                                <option value="">Select proficiency</option>
-                                <option value="beginner">Beginner</option>
-                                <option value="intermediate">Intermediate</option>
-                                <option value="advanced">Advanced</option>
-                                <option value="expert">Expert</option>
-                            </select>
+                        {/* USN */}
+                        <div className="form-group">
+                            <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
+                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                USN <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="usn"
+                                    className={`w-full border ${validationErrors.usn ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    placeholder="Enter your USN"
+                                    value={formData.usn}
+                                    onChange={handleChange}
+                                    onFocus={(e) => e.target.classList.add('input-focused')}
+                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                />
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 14 7 14s2.832-5.477 4-6.253z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.5 6.253v1.5a3.5 3.5 0 11-7 0v-1.5a3.5 3.5 0 017 0z" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {validationErrors.usn && (
+                                <p className="text-red-600 text-xs mt-1 animate-shake">{validationErrors.usn}</p>
+                            )}
                         </div>
 
-                        {/* PROGRAMMING LANGUAGE */}
-                        <div>
-                            <label className="text-gray-300">Programming Language</label>
-
-                            <input
-                                required
-                                name="programmingLanguages.language"
-                                className="input-dark"
-                                placeholder="Language (e.g. JavaScript)"
-                                value={formData.programmingLanguages[0].language}
-                                onChange={(e) => handleArrayChange(e, 0, "programmingLanguages")}
-                            />
-
-                            <select
-                                required
-                                name="programmingLanguages.experience"
-                                className="input-dark mt-2"
-                                value={formData.programmingLanguages[0].experience}
-                                onChange={(e) => handleArrayChange(e, 0, "programmingLanguages")}
-                            >
-                                <option value="">Select experience</option>
-                                <option value="< 6 months">&lt; 6 months</option>
-                                <option value="6-12 months">6–12 months</option>
-                                <option value="1-2 years">1–2 years</option>
-                                <option value="2+ years">2+ years</option>
-                            </select>
-                        </div>
-
-                        {/* PREVIOUS EDUCATION */}
-                        <div>
-                            <label className="text-gray-300">Previous Education</label>
-
-                            <input
-                                required
-                                name="previousEducation.degree"
-                                className="input-dark"
-                                placeholder="Degree (e.g. Higher Secondary)"
-                                value={formData.previousEducation[0].degree}
-                                onChange={(e) => handleArrayChange(e, 0, "previousEducation")}
-                            />
-
-                            <input
-                                required
-                                name="previousEducation.institution"
-                                className="input-dark mt-2"
-                                placeholder="Institution name"
-                                value={formData.previousEducation[0].institution}
-                                onChange={(e) => handleArrayChange(e, 0, "previousEducation")}
-                            />
-
-                            <input
-                                required
-                                type="number"
-                                name="previousEducation.year"
-                                className="input-dark mt-2"
-                                placeholder="Year"
-                                value={formData.previousEducation[0].year}
-                                onChange={(e) => handleArrayChange(e, 0, "previousEducation")}
-                            />
-
-                            <input
-                                required
-                                type="number"
-                                name="previousEducation.percentage"
-                                className="input-dark mt-2"
-                                placeholder="Percentage"
-                                value={formData.previousEducation[0].percentage}
-                                onChange={(e) => handleArrayChange(e, 0, "previousEducation")}
-                            />
+                        {/* COLLEGE NAME */}
+                        <div className="form-group">
+                            <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
+                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                College Name <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="collegeName"
+                                    className={`w-full border ${validationErrors.collegeName ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    placeholder="Enter your college name"
+                                    value={formData.collegeName}
+                                    onChange={handleChange}
+                                    onFocus={(e) => e.target.classList.add('input-focused')}
+                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                />
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 14l9-5-9-5V7a2 2 0 012-2h10a2 2 0 012 2v7z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 14l-10-2-10 2" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2 14l10-2 10 2" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {validationErrors.collegeName && (
+                                <p className="text-red-600 text-xs mt-1 animate-shake">{validationErrors.collegeName}</p>
+                            )}
                         </div>
 
                         {/* SUBMIT BUTTON */}
-                        <div className="col-span-2">
-                            <button
-                                type="submit"
-                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 
-                                py-3 rounded-xl font-bold text-lg shadow-[0_0_20px_#4f46e5] 
-                                hover:opacity-90 transition"
-                            >
-                                {isLoading ? "Registering..." : "Create Account"}
-                            </button>
-                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl font-semibold text-base hover:from-blue-700 hover:to-blue-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-6 transform hover:scale-[1.02] active:scale-[0.98] button-glow flex items-center justify-center"
+                        >
+                            {isLoading ? (
+                                <span className="flex items-center">
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Creating Account...
+                                </span>
+                            ) : (
+                                <span className="flex items-center">
+                                    Create Account
+                                    <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </span>
+                            )}
+                        </button>
                     </form>
 
-                    <p className="text-center text-gray-400 mt-6">
+                    <p className="text-center text-gray-600 mt-8 text-sm content-animate">
                         Already have an account?{" "}
-                        <Link className="text-purple-400 hover:underline" to="/login">
-                            Login
+                        <Link className="text-blue-600 hover:text-blue-700 font-semibold transition-colors hover:underline" to="/login">
+                            Login here
                         </Link>
                     </p>
                 </div>

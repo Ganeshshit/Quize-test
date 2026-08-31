@@ -49,15 +49,27 @@ export const useAuth = () => {
             if (result.success) {
                 setUser(result.data.user);
                 setIsAuthenticated(true);
-                return { success: true, user: result.data.user };
+                return { 
+                    success: true, 
+                    user: result.data.user,
+                    message: result.data?.message || result.message || 'Login successful'
+                };
             } else {
                 setError(result.error);
-                return { success: false, error: result.error };
+                return { 
+                    success: false, 
+                    error: result.error,
+                    message: result.message 
+                };
             }
         } catch (err) {
-            const errorMessage = err.message || 'Login failed';
+            const errorMessage = err.response?.data?.error || err.message || 'Login failed';
             setError(errorMessage);
-            return { success: false, error: errorMessage };
+            return { 
+                success: false, 
+                error: errorMessage,
+                message: err.response?.data?.message 
+            };
         } finally {
             setIsLoading(false);
         }
@@ -74,15 +86,27 @@ export const useAuth = () => {
             if (result.success) {
                 setUser(result.data.user);
                 setIsAuthenticated(true);
-                return { success: true, user: result.data.user };
+                return { 
+                    success: true, 
+                    user: result.data.user,
+                    message: result.data?.message || result.message || 'Registration successful'
+                };
             } else {
                 setError(result.error);
-                return { success: false, error: result.error };
+                return { 
+                    success: false, 
+                    error: result.error,
+                    message: result.message 
+                };
             }
         } catch (err) {
-            const errorMessage = err.message || 'Registration failed';
+            const errorMessage = err.response?.data?.error || err.message || 'Registration failed';
             setError(errorMessage);
-            return { success: false, error: errorMessage };
+            return { 
+                success: false, 
+                error: errorMessage,
+                message: err.response?.data?.message 
+            };
         } finally {
             setIsLoading(false);
         }
