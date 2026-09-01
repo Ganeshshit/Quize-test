@@ -121,7 +121,7 @@ const Register = () => {
                     animation: shake 0.3s ease-in-out;
                 }
                 .form-group {
-                    animation: fadeSlideUp 0.6s ease-out forwards;
+                    animation: fadeSlideUp 0.6s cubic-bezier(.22,.61,.36,1) forwards;
                     opacity: 0;
                 }
                 .form-group:nth-child(1) { animation-delay: 0.1s; }
@@ -141,8 +141,8 @@ const Register = () => {
                     }
                 }
                 @keyframes pulse-border {
-                    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-                    50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(240, 193, 92, 0.4); }
+                    50% { box-shadow: 0 0 0 8px rgba(240, 193, 92, 0); }
                 }
                 .input-focused {
                     animation: pulse-border 2s infinite;
@@ -162,24 +162,39 @@ const Register = () => {
                     opacity: 0;
                 }
                 @keyframes button-glow {
-                    0%, 100% { box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }
-                    50% { box-shadow: 0 4px 25px rgba(37, 99, 235, 0.5); }
+                    0%, 100% { box-shadow: 0 4px 15px rgba(240, 193, 92, 0.3); }
+                    50% { box-shadow: 0 4px 25px rgba(240, 193, 92, 0.5); }
                 }
                 .button-glow {
                     animation: button-glow 2s ease-in-out infinite;
+                }
+                @keyframes float {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-8px); }
+                }
+                @keyframes shimmer {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                }
+                .shimmer-effect {
+                    background: linear-gradient(90deg, transparent 0%, rgba(240, 193, 92, 0.1) 50%, transparent 100%);
+                    background-size: 200% 100%;
+                    animation: shimmer 3s infinite;
                 }
             `}</style>
             {/* Left Side - Illustration */}
             <JobHeroIllustration />
 
             {/* Right Side - Registration Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-white">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8" style={{
+                background: "radial-gradient(120% 100% at 30% 15%, #FBF8EF 0%, #F3EDDB 55%, #ECE3C9 100%)"
+            }}>
                 <div className="w-full max-w-md">
                     <div className="mb-8 content-animate">
-                        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                        <h1 className="text-4xl font-bold mb-2" style={{ color: "#1F6B4F", fontFamily: "'Fraunces', serif" }}>
                             Create Your Account
                         </h1>
-                        <p className="text-gray-600">
+                        <p className="text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>
                             Join us to start your learning journey
                         </p>
                     </div>
@@ -189,18 +204,19 @@ const Register = () => {
                         {/* NAME */}
                         <div className="form-group">
                             <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
-                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                <span className="w-1 h-4 rounded-full mr-2" style={{ background: "linear-gradient(180deg, #F0C15C 0%, #D99A2B 100%)" }}></span>
                                 Full Name <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                                 <input
                                     name="name"
-                                    className={`w-full border ${validationErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    className={`w-full border ${validationErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 hover:shadow-md`}
+                                    style={{ focusRingColor: "#F0C15C", hoverBorderColor: "#D99A2B" }}
                                     placeholder="Enter your full name"
                                     value={formData.name}
                                     onChange={handleChange}
-                                    onFocus={(e) => e.target.classList.add('input-focused')}
-                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                    onFocus={(e) => { e.target.classList.add('input-focused'); e.target.style.borderColor = '#F0C15C'; e.target.style.boxShadow = '0 0 0 3px rgba(240, 193, 92, 0.2)'; }}
+                                    onBlur={(e) => { e.target.classList.remove('input-focused'); e.target.style.borderColor = validationErrors.name ? '#FECACA' : '#D1D5DB'; e.target.style.boxShadow = 'none'; }}
                                 />
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,19 +232,19 @@ const Register = () => {
                         {/* EMAIL */}
                         <div className="form-group">
                             <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
-                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                <span className="w-1 h-4 rounded-full mr-2" style={{ background: "linear-gradient(180deg, #3FA383 0%, #1F6B4F 100%)" }}></span>
                                 Email Address <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                                 <input
                                     name="email"
                                     type="email"
-                                    className={`w-full border ${validationErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    className={`w-full border ${validationErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 hover:shadow-md`}
                                     placeholder="Enter your email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    onFocus={(e) => e.target.classList.add('input-focused')}
-                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                    onFocus={(e) => { e.target.classList.add('input-focused'); e.target.style.borderColor = '#3FA383'; e.target.style.boxShadow = '0 0 0 3px rgba(63, 163, 131, 0.2)'; }}
+                                    onBlur={(e) => { e.target.classList.remove('input-focused'); e.target.style.borderColor = validationErrors.email ? '#FECACA' : '#D1D5DB'; e.target.style.boxShadow = 'none'; }}
                                 />
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,19 +260,19 @@ const Register = () => {
                         {/* PASSWORD */}
                         <div className="form-group">
                             <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
-                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                <span className="w-1 h-4 rounded-full mr-2" style={{ background: "linear-gradient(180deg, #F0C15C 0%, #D99A2B 100%)" }}></span>
                                 Password <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                                 <input
                                     name="password"
                                     type="password"
-                                    className={`w-full border ${validationErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    className={`w-full border ${validationErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 hover:shadow-md`}
                                     placeholder="Create a strong password"
                                     value={formData.password}
                                     onChange={handleChange}
-                                    onFocus={(e) => e.target.classList.add('input-focused')}
-                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                    onFocus={(e) => { e.target.classList.add('input-focused'); e.target.style.borderColor = '#F0C15C'; e.target.style.boxShadow = '0 0 0 3px rgba(240, 193, 92, 0.2)'; }}
+                                    onBlur={(e) => { e.target.classList.remove('input-focused'); e.target.style.borderColor = validationErrors.password ? '#FECACA' : '#D1D5DB'; e.target.style.boxShadow = 'none'; }}
                                 />
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,7 +291,7 @@ const Register = () => {
                         {/* PHONE NUMBER */}
                         <div className="form-group">
                             <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
-                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                <span className="w-1 h-4 rounded-full mr-2" style={{ background: "linear-gradient(180deg, #3FA383 0%, #1F6B4F 100%)" }}></span>
                                 Phone Number <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
@@ -283,12 +299,12 @@ const Register = () => {
                                     name="phoneNo"
                                     type="tel"
                                     maxLength="10"
-                                    className={`w-full border ${validationErrors.phoneNo ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    className={`w-full border ${validationErrors.phoneNo ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 hover:shadow-md`}
                                     placeholder="10-digit phone number"
                                     value={formData.phoneNo}
                                     onChange={handleChange}
-                                    onFocus={(e) => e.target.classList.add('input-focused')}
-                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                    onFocus={(e) => { e.target.classList.add('input-focused'); e.target.style.borderColor = '#3FA383'; e.target.style.boxShadow = '0 0 0 3px rgba(63, 163, 131, 0.2)'; }}
+                                    onBlur={(e) => { e.target.classList.remove('input-focused'); e.target.style.borderColor = validationErrors.phoneNo ? '#FECACA' : '#D1D5DB'; e.target.style.boxShadow = 'none'; }}
                                 />
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,18 +320,18 @@ const Register = () => {
                         {/* USN */}
                         <div className="form-group">
                             <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
-                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                <span className="w-1 h-4 rounded-full mr-2" style={{ background: "linear-gradient(180deg, #F0C15C 0%, #D99A2B 100%)" }}></span>
                                 USN <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                                 <input
                                     name="usn"
-                                    className={`w-full border ${validationErrors.usn ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    className={`w-full border ${validationErrors.usn ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 hover:shadow-md`}
                                     placeholder="Enter your USN"
                                     value={formData.usn}
                                     onChange={handleChange}
-                                    onFocus={(e) => e.target.classList.add('input-focused')}
-                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                    onFocus={(e) => { e.target.classList.add('input-focused'); e.target.style.borderColor = '#F0C15C'; e.target.style.boxShadow = '0 0 0 3px rgba(240, 193, 92, 0.2)'; }}
+                                    onBlur={(e) => { e.target.classList.remove('input-focused'); e.target.style.borderColor = validationErrors.usn ? '#FECACA' : '#D1D5DB'; e.target.style.boxShadow = 'none'; }}
                                 />
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,18 +348,18 @@ const Register = () => {
                         {/* COLLEGE NAME */}
                         <div className="form-group">
                             <label className="block text-gray-700 text-sm font-medium mb-2 flex items-center">
-                                <span className="w-1 h-4 bg-blue-500 rounded-full mr-2"></span>
+                                <span className="w-1 h-4 rounded-full mr-2" style={{ background: "linear-gradient(180deg, #3FA383 0%, #1F6B4F 100%)" }}></span>
                                 College Name <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                                 <input
                                     name="collegeName"
-                                    className={`w-full border ${validationErrors.collegeName ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-400 hover:shadow-md`}
+                                    className={`w-full border ${validationErrors.collegeName ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} rounded-xl px-4 py-3 pl-10 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 hover:shadow-md`}
                                     placeholder="Enter your college name"
                                     value={formData.collegeName}
                                     onChange={handleChange}
-                                    onFocus={(e) => e.target.classList.add('input-focused')}
-                                    onBlur={(e) => e.target.classList.remove('input-focused')}
+                                    onFocus={(e) => { e.target.classList.add('input-focused'); e.target.style.borderColor = '#3FA383'; e.target.style.boxShadow = '0 0 0 3px rgba(63, 163, 131, 0.2)'; }}
+                                    onBlur={(e) => { e.target.classList.remove('input-focused'); e.target.style.borderColor = validationErrors.collegeName ? '#FECACA' : '#D1D5DB'; e.target.style.boxShadow = 'none'; }}
                                 />
                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,7 +378,10 @@ const Register = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 rounded-xl font-semibold text-base hover:from-blue-700 hover:to-blue-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-6 transform hover:scale-[1.02] active:scale-[0.98] button-glow flex items-center justify-center"
+                            className="w-full text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-6 transform hover:scale-[1.02] active:scale-[0.98] button-glow flex items-center justify-center shimmer-effect"
+                            style={{
+                                background: "linear-gradient(135deg, #F0C15C 0%, #D99A2B 100%)"
+                            }}
                         >
                             {isLoading ? (
                                 <span className="flex items-center">
@@ -385,7 +404,7 @@ const Register = () => {
 
                     <p className="text-center text-gray-600 mt-8 text-sm content-animate">
                         Already have an account?{" "}
-                        <Link className="text-blue-600 hover:text-blue-700 font-semibold transition-colors hover:underline" to="/login">
+                        <Link className="font-semibold transition-colors hover:underline" to="/login" style={{ color: "#1F6B4F" }}>
                             Login here
                         </Link>
                     </p>
