@@ -5,12 +5,17 @@ import { quizzesAPI } from "../../api/quizzes.api";
 import { proctorAPI, PROCTOR_EVENTS } from "../../api/proctor.api";
 import { socketService } from "../../services/socket.service";
 import { toast } from "react-hot-toast";
+import {
+  Clock, AlertTriangle, ShieldCheck,
+  MonitorOff, ArrowRight, ArrowLeft, LayoutGrid,
+  XCircle
+} from 'lucide-react';
 
 const QuizAttempt = () => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
 
-  // State management
+  // --- State management ---
   const [attempt, setAttempt] = useState(null);
   const [answers, setAnswers] = useState({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -23,11 +28,10 @@ const QuizAttempt = () => {
   const [cameraStream, setCameraStream] = useState(null);
   const [proctorConnected, setProctorConnected] = useState(false);
 
-  // Refs
+  // --- Refs ---
   const timerRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
   const autoSaveIntervalRef = useRef(null);
-  const questionStartTimeRef = useRef(Date.now());
   const visibilityChangeCountRef = useRef(0);
   const videoRef = useRef(null);
   const isAutoSubmittingRef = useRef(false);
@@ -46,7 +50,7 @@ const QuizAttempt = () => {
   const [clientFingerprint] = useState(() => generateFingerprint());
 
   // ==========================================
-  // STEP 6: SECURITY - Fullscreen enforcement
+  // SECURITY - Fullscreen enforcement
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.enableFullScreen) return;
@@ -56,8 +60,6 @@ const QuizAttempt = () => {
         if (!document.fullscreenElement) {
           await document.documentElement.requestFullscreen();
           setIsFullScreen(true);
-
-          // Log fullscreen enter event
           if (proctorConnected) {
             await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_ENTER);
           }
@@ -73,18 +75,10 @@ const QuizAttempt = () => {
       setIsFullScreen(isFS);
 
       if (!isFS && !submitting && !isAutoSubmittingRef.current) {
-        toast.error("⚠️ You exited fullscreen! Please return to fullscreen mode!", {
-          duration: 5000
-        });
-
-        // Log fullscreen exit event
+        toast.error("⚠️ You exited fullscreen! Please return to fullscreen mode!", { duration: 5000 });
         if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_EXIT, {
-            timestamp: Date.now()
-          });
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_EXIT, { timestamp: Date.now() });
         }
-
-        // Try to re-enter fullscreen after 2 seconds
         setTimeout(() => {
           if (!document.fullscreenElement && !isAutoSubmittingRef.current) {
             enterFullScreen();
@@ -93,9 +87,7 @@ const QuizAttempt = () => {
       }
     };
 
-    // Enter fullscreen immediately when quiz loads
     enterFullScreen();
-
     document.addEventListener("fullscreenchange", handleFullScreenChange);
 
     return () => {
@@ -107,7 +99,7 @@ const QuizAttempt = () => {
   }, [attempt, submitting, proctorConnected, attemptId]);
 
   // ==========================================
-  // STEP 7: SECURITY - Camera Access
+  // SECURITY - Camera Access
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.enableWebcamProctoring) return;
@@ -115,56 +107,35 @@ const QuizAttempt = () => {
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
-          },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
           audio: false
         });
 
         setCameraStream(stream);
+        if (videoRef.current) videoRef.current.srcObject = stream;
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-
-        // Log camera enabled event
         if (proctorConnected) {
           await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_ENABLED);
         }
-
         toast.success("Camera enabled for proctoring", { duration: 2000 });
 
       } catch (error) {
-        console.error("Camera access error:", error);
         toast.error("⚠️ Camera access is required for this quiz!");
-
-        // Log camera blocked event
         if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_BLOCKED, {
-            error: error.message
-          });
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_BLOCKED, { error: error.message });
         }
-
-        // Block quiz if camera is mandatory
-        setTimeout(() => {
-          navigate("/student/enrolled");
-        }, 3000);
+        setTimeout(() => navigate("/student/enrolled"), 3000);
       }
     };
 
     startCamera();
-
     return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
+      if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
     };
   }, [attempt, proctorConnected, attemptId, navigate]);
 
   // ==========================================
-  // STEP 10: SECURITY - Tab switch detection
+  // SECURITY - Tab switch detection
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.enableTabSwitchDetection) return;
@@ -177,101 +148,56 @@ const QuizAttempt = () => {
 
         const maxSwitches = attempt.quiz.antiCheatSettings.maxTabSwitches || 2;
 
-        // Log tab switch event
         if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.TAB_SWITCH, {
-            count: newCount,
-            maxAllowed: maxSwitches
-          });
+          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.TAB_SWITCH, { count: newCount, maxAllowed: maxSwitches });
         }
 
         if (newCount >= maxSwitches) {
-          toast.error(
-            `⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting quiz...`,
-            { duration: 5000 }
-          );
-
-          // Log limit exceeded event
+          toast.error(`⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting quiz...`, { duration: 5000 });
           if (proctorConnected) {
-            await proctorAPI.logEvent(
-              attemptId,
-              PROCTOR_EVENTS.TAB_SWITCH_LIMIT_EXCEEDED,
-              { finalCount: newCount }
-            );
+            await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.TAB_SWITCH_LIMIT_EXCEEDED, { finalCount: newCount });
           }
-
           setTimeout(() => handleAutoSubmit(), 2000);
         } else {
-          toast.warning(
-            `⚠️ Tab switch detected! Warning ${newCount}/${maxSwitches}`,
-            { duration: 4000 }
-          );
+          toast.warning(`⚠️ Tab switch detected! Warning ${newCount}/${maxSwitches}`, { duration: 4000 });
         }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [attempt, tabSwitches, proctorConnected, attemptId]);
 
   // ==========================================
-  // STEP 11: SECURITY - Prevent copy-paste
+  // SECURITY - Prevent copy-paste & Right Click
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.disableCopyPaste) return;
 
-    const preventCopy = async (e) => {
+    const preventAction = async (e, eventType, toastMsg) => {
       e.preventDefault();
-      toast.error("Copy is disabled during quiz", { duration: 2000 });
-
-      if (proctorConnected) {
-        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.COPY_ATTEMPT);
-      }
+      toast.error(toastMsg, { duration: 2000 });
+      if (proctorConnected) await proctorAPI.logEvent(attemptId, eventType);
       return false;
     };
 
-    const preventPaste = async (e) => {
-      e.preventDefault();
-      toast.error("Paste is disabled during quiz", { duration: 2000 });
+    const copy = (e) => preventAction(e, PROCTOR_EVENTS.COPY_ATTEMPT, "Copy is disabled");
+    const paste = (e) => preventAction(e, PROCTOR_EVENTS.PASTE_ATTEMPT, "Paste is disabled");
+    const cut = (e) => preventAction(e, null, "Cut is disabled");
+    const rightClick = (e) => { e.preventDefault(); return false; };
 
-      if (proctorConnected) {
-        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.PASTE_ATTEMPT);
-      }
-      return false;
-    };
-
-    const preventCut = (e) => {
-      e.preventDefault();
-      toast.error("Cut is disabled during quiz", { duration: 2000 });
-      return false;
-    };
-
-    document.addEventListener("copy", preventCopy);
-    document.addEventListener("paste", preventPaste);
-    document.addEventListener("cut", preventCut);
+    document.addEventListener("copy", copy);
+    document.addEventListener("paste", paste);
+    document.addEventListener("cut", cut);
+    document.addEventListener("contextmenu", rightClick);
 
     return () => {
-      document.removeEventListener("copy", preventCopy);
-      document.removeEventListener("paste", preventPaste);
-      document.removeEventListener("cut", preventCut);
+      document.removeEventListener("copy", copy);
+      document.removeEventListener("paste", paste);
+      document.removeEventListener("cut", cut);
+      document.removeEventListener("contextmenu", rightClick);
     };
   }, [attempt, proctorConnected, attemptId]);
-
-  // ==========================================
-  // SECURITY: Prevent right-click
-  // ==========================================
-  useEffect(() => {
-    const preventRightClick = (e) => {
-      e.preventDefault();
-      return false;
-    };
-
-    document.addEventListener("contextmenu", preventRightClick);
-    return () => document.removeEventListener("contextmenu", preventRightClick);
-  }, []);
 
   // ==========================================
   // SECURITY: Detect dev tools
@@ -282,62 +208,35 @@ const QuizAttempt = () => {
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
       const heightThreshold = window.outerHeight - window.innerHeight > threshold;
 
-      if (widthThreshold || heightThreshold) {
-        if (proctorConnected && !isAutoSubmittingRef.current) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.DEV_TOOLS_OPEN);
-          toast.error("⚠️ Developer tools detected! This has been logged.", {
-            duration: 5000
-          });
-        }
+      if ((widthThreshold || heightThreshold) && proctorConnected && !isAutoSubmittingRef.current) {
+        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.DEV_TOOLS_OPEN);
+        toast.error("⚠️ Developer tools detected! This has been logged.", { duration: 5000 });
       }
     };
-
     const interval = setInterval(detectDevTools, 1000);
     return () => clearInterval(interval);
   }, [proctorConnected, attemptId]);
 
   // ==========================================
-  // STEP 8 & 9: Initialize Proctoring
+  // Initialize Proctoring Socket
   // ==========================================
   useEffect(() => {
     const initProctoring = async () => {
       if (!attempt || !attemptId) return;
-
       try {
-        // Generate proctor token
         const tokenData = await proctorAPI.generateToken(attemptId);
         proctorTokenRef.current = tokenData;
-
-        // Connect to socket
         await socketService.connect(tokenData.token);
-
-        // Join proctor room
-        await socketService.joinProctorRoom(
-          attemptId,
-          tokenData.token,
-          tokenData.nonce
-        );
-
+        await socketService.joinProctorRoom(attemptId, tokenData.token, tokenData.nonce);
         setProctorConnected(true);
-
-        // Log attempt start
-        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_START, {
-          quizId: attempt.quiz._id,
-          startTime: new Date().toISOString()
-        });
-
-        // Listen for admin commands
+        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_START, { quizId: attempt.quiz._id, startTime: new Date().toISOString() });
         socketService.onAdminCommand(handleAdminCommand);
-
       } catch (error) {
-        console.error("Proctoring initialization error:", error);
         toast.error("Failed to initialize proctoring system");
       }
     };
 
-    if (attempt && !proctorConnected) {
-      initProctoring();
-    }
+    if (attempt && !proctorConnected) initProctoring();
 
     return () => {
       if (proctorConnected) {
@@ -347,73 +246,37 @@ const QuizAttempt = () => {
     };
   }, [attempt, attemptId, proctorConnected]);
 
-  // Handle admin commands from dashboard
   const handleAdminCommand = async (data) => {
     const { cmd, reason } = data;
-
-    switch (cmd) {
-      case 'terminate':
-        toast.error(`⚠️ Quiz terminated by admin. Reason: ${reason || 'Violation detected'}`, {
-          duration: 10000
-        });
-        await handleAutoSubmit();
-        break;
-
-      case 'warn':
-        toast.warning(`⚠️ Warning from admin: ${reason || 'Please follow quiz rules'}`, {
-          duration: 8000
-        });
-        break;
-
-      default:
-        console.log('Unknown admin command:', cmd);
+    if (cmd === 'terminate') {
+      toast.error(`⚠️ Quiz terminated by admin. Reason: ${reason || 'Violation detected'}`, { duration: 10000 });
+      await handleAutoSubmit();
+    } else if (cmd === 'warn') {
+      toast.warning(`⚠️ Warning from admin: ${reason || 'Please follow rules'}`, { duration: 8000 });
     }
   };
 
   // ==========================================
-  // STEP 14: Auto-save answers periodically
+  // Auto-save & Data Fetching
   // ==========================================
   useEffect(() => {
     if (!attemptId || !attempt || isAutoSubmittingRef.current) return;
-
-    autoSaveIntervalRef.current = setInterval(() => {
-      saveAnswersToServer();
-    }, 30000); // Every 30 seconds
-
-    return () => {
-      if (autoSaveIntervalRef.current) {
-        clearInterval(autoSaveIntervalRef.current);
-      }
-    };
+    autoSaveIntervalRef.current = setInterval(saveAnswersToServer, 30000);
+    return () => clearInterval(autoSaveIntervalRef.current);
   }, [attemptId, attempt, answers]);
 
   const saveAnswersToServer = async () => {
     if (isAutoSubmittingRef.current) return;
-
     try {
       const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
-        questionId,
-        answer,
-        clientTimestamp: new Date().toISOString()
+        questionId, answer, clientTimestamp: new Date().toISOString()
       }));
-
-      await quizzesAPI.autoSaveAnswers(attemptId, {
-        answers: formattedAnswers,
-        tabSwitches: visibilityChangeCountRef.current
-      });
-
-      console.log("✅ Answers auto-saved successfully");
-    } catch (error) {
-      console.error("Auto-save error:", error);
-    }
+      await quizzesAPI.autoSaveAnswers(attemptId, { answers: formattedAnswers, tabSwitches: visibilityChangeCountRef.current });
+    } catch (error) { console.error("Auto-save error", error); }
   };
 
-  // ==========================================
-  // Fetch attempt data
-  // ==========================================
   useEffect(() => {
     fetchAttempt();
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
@@ -426,12 +289,11 @@ const QuizAttempt = () => {
       const res = await quizzesAPI.getAttemptById(attemptId);
 
       if (res.success && res.data) {
-        if (!res.data.selectedQuestions || res.data.selectedQuestions.length === 0) {
-          toast.error("Quiz data is incomplete. Please restart the quiz.");
+        if (!res.data.selectedQuestions?.length) {
+          toast.error("Quiz data is incomplete.");
           navigate("/student/enrolled");
           return;
         }
-
         if (res.data.status !== "in_progress") {
           toast.info("This quiz has already been submitted");
           navigate("/student/enrolled");
@@ -440,62 +302,37 @@ const QuizAttempt = () => {
 
         setAttempt(res.data);
 
-        // Load saved answers
-        if (res.data.rawAnswers && res.data.rawAnswers.length > 0) {
+        if (res.data.rawAnswers?.length > 0) {
           const savedAnswers = {};
-          res.data.rawAnswers.forEach(ans => {
-            savedAnswers[ans.questionId] = ans.answer;
-          });
+          res.data.rawAnswers.forEach(ans => savedAnswers[ans.questionId] = ans.answer);
           setAnswers(savedAnswers);
-          toast.success("Previous answers restored", { duration: 2000 });
         }
 
-        // Calculate time remaining
-        const quiz = res.data.quiz;
-        const durationMs = quiz.durationMinutes * 60 * 1000;
+        const durationMs = res.data.quiz.durationMinutes * 60 * 1000;
         const elapsed = Date.now() - new Date(res.data.startTime).getTime();
-        const remaining = Math.max(0, durationMs - elapsed);
-
-        setTimeRemaining(Math.floor(remaining / 1000));
+        setTimeRemaining(Math.floor(Math.max(0, durationMs - elapsed) / 1000));
         startTimer();
       } else {
         toast.error("Attempt not found");
         navigate("/student/enrolled");
       }
     } catch (error) {
-      console.error("Fetch attempt error:", error);
-      const errorMsg = error?.response?.data?.error || "Failed to load attempt";
-
-      if (error?.response?.data?.timeExpired) {
-        toast.error("Your quiz session has expired");
-        navigate("/student/enrolled");
-      } else {
-        toast.error(errorMsg);
-        navigate("/student/enrolled");
-      }
+      toast.error(error?.response?.data?.timeExpired ? "Session expired" : "Failed to load attempt");
+      navigate("/student/enrolled");
     } finally {
       setLoading(false);
     }
   };
 
   // ==========================================
-  // STEP 15: Timer enforcement
+  // Timer & Submissions
   // ==========================================
   const startTimer = () => {
     timerRef.current = setInterval(() => {
       setTimeRemaining(prev => {
-        if (prev <= 1) {
-          handleAutoSubmit();
-          return 0;
-        }
-
-        // Show warnings
-        if (prev === 300) {
-          toast.warning("⏰ 5 minutes remaining!", { duration: 5000 });
-        } else if (prev === 60) {
-          toast.error("⏰ 1 minute remaining!", { duration: 5000 });
-        }
-
+        if (prev <= 1) { handleAutoSubmit(); return 0; }
+        if (prev === 300) toast.warning("⏰ 5 minutes remaining!", { duration: 5000 });
+        if (prev === 60) toast.error("⏰ 1 minute remaining!", { duration: 5000 });
         return prev - 1;
       });
     }, 1000);
@@ -503,66 +340,34 @@ const QuizAttempt = () => {
 
   const handleAnswerChange = (questionId, answer) => {
     if (isAutoSubmittingRef.current) return;
-
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
+    setAnswers(prev => ({ ...prev, [questionId]: answer }));
     lastActivityRef.current = Date.now();
   };
 
-  // ==========================================
-  // Auto-submit handler
-  // ==========================================
   const handleAutoSubmit = async () => {
     if (isAutoSubmittingRef.current) return;
-
     isAutoSubmittingRef.current = true;
-
     if (timerRef.current) clearInterval(timerRef.current);
     if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
-
-    // Log auto-submit event
     if (proctorConnected) {
-      await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT, {
-        reason: 'time_up_or_violation',
-        timestamp: new Date().toISOString()
-      });
+      await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT, { reason: 'time_up_or_violation', timestamp: new Date().toISOString() });
     }
-
     toast.error("⏰ Time's up! Auto-submitting...", { duration: 5000 });
     await submitQuiz(true);
   };
 
-  // ==========================================
-  // STEP 16: Final submission
-  // ==========================================
   const submitQuiz = async (isAutoSubmit = false) => {
     if (isAutoSubmittingRef.current && !isAutoSubmit) return;
-
-    if (isAutoSubmit) {
-      isAutoSubmittingRef.current = true;
-    }
+    if (isAutoSubmit) isAutoSubmittingRef.current = true;
 
     try {
       setSubmitting(true);
-
       const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
-        questionId,
-        answer,
-        clientTimestamp: new Date().toISOString()
+        questionId, answer, clientTimestamp: new Date().toISOString()
       }));
 
-      // Log submission attempt
       if (proctorConnected) {
-        await proctorAPI.logEvent(
-          attemptId,
-          isAutoSubmit ? PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT : PROCTOR_EVENTS.ATTEMPT_SUBMIT,
-          {
-            answerCount: formattedAnswers.length,
-            timestamp: new Date().toISOString()
-          }
-        );
+        await proctorAPI.logEvent(attemptId, isAutoSubmit ? PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT : PROCTOR_EVENTS.ATTEMPT_SUBMIT, { answerCount: formattedAnswers.length });
       }
 
       const res = await quizzesAPI.submit(attemptId, {
@@ -574,33 +379,19 @@ const QuizAttempt = () => {
       });
 
       if (res.success) {
-        // STEP 17: Exit cleanup
-
-        // Exit fullscreen
-        if (document.fullscreenElement) {
-          await document.exitFullscreen().catch(() => { });
-        }
-
-        // Stop camera stream
-        if (cameraStream) {
-          cameraStream.getTracks().forEach(track => track.stop());
-        }
-
-        // Disconnect socket
+        if (document.fullscreenElement) await document.exitFullscreen().catch(() => { });
+        if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
         if (proctorConnected) {
           socketService.leaveProctorRoom(attemptId);
           socketService.disconnect();
         }
-
         toast.success("✅ Quiz submitted successfully!");
-        navigate("/student/enrolled");
+        navigate("/student/results");
       } else {
         toast.error(res.error || "Submission failed");
       }
     } catch (error) {
-      console.error("Submit error:", error);
-      const errorMsg = error?.response?.data?.error || "Failed to submit quiz";
-      toast.error(errorMsg);
+      toast.error(error?.response?.data?.error || "Failed to submit quiz");
     } finally {
       setSubmitting(false);
     }
@@ -608,21 +399,12 @@ const QuizAttempt = () => {
 
   const handleSubmit = () => {
     if (isAutoSubmittingRef.current) return;
-
-    const unanswered = attempt.selectedQuestions.filter(
-      q => !answers[q.question._id]
-    );
-
+    const unanswered = attempt.selectedQuestions.filter(q => !answers[q.question._id]);
     if (unanswered.length > 0) {
-      const confirm = window.confirm(
-        `You have ${unanswered.length} unanswered question(s). Do you want to submit anyway?`
-      );
-      if (!confirm) return;
+      if (!window.confirm(`You have ${unanswered.length} unanswered question(s). Submit anyway?`)) return;
     }
-
     if (timerRef.current) clearInterval(timerRef.current);
     if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
-
     submitQuiz(false);
   };
 
@@ -632,33 +414,25 @@ const QuizAttempt = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getAnsweredCount = () => {
-    return Object.keys(answers).length;
-  };
-
+  // --- Render Helpers ---
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-xl text-gray-700 font-medium">Loading quiz...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-4 border-gray-200 border-t-yellow-400 rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Initializing Secure Environment</p>
       </div>
     );
   }
 
-  if (!attempt || !attempt.selectedQuestions || attempt.selectedQuestions.length === 0) {
+  if (!attempt || !attempt.selectedQuestions) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
-          <div className="text-6xl mb-4">❌</div>
-          <p className="text-xl text-red-600 font-semibold mb-4">Quiz data not found</p>
-          <p className="text-gray-600 mb-6">The quiz data is incomplete or unavailable.</p>
-          <button
-            onClick={() => navigate("/student/enrolled")}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
-          >
-            Back to Enrolled Quizzes
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md text-center">
+          <XCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Data Unavailable</h2>
+          <p className="text-sm text-gray-500 mb-6">The quiz data is missing or incomplete.</p>
+          <button onClick={() => navigate("/student/enrolled")} className="w-full py-3 bg-[#0A0A0A] text-white font-bold rounded-xl hover:bg-gray-800 transition-colors">
+            Return to Dashboard
           </button>
         </div>
       </div>
@@ -667,261 +441,226 @@ const QuizAttempt = () => {
 
   const currentQuestion = attempt.selectedQuestions[currentQuestionIndex];
   const totalQuestions = attempt.selectedQuestions.length;
-
-  if (!currentQuestion || !currentQuestion.question) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
-          <div className="text-6xl mb-4">⚠️</div>
-          <p className="text-xl text-red-600 font-semibold mb-4">Question data is missing</p>
-          <button
-            onClick={() => navigate("/student/enrolled")}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition"
-          >
-            Back to Enrolled Quizzes
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const answeredCount = Object.keys(answers).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-4">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-800">{attempt.quiz.title}</h1>
-            <div className="flex gap-4 mt-2 text-sm text-gray-600">
-              <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
-              <span>•</span>
-              <span>Answered: {getAnsweredCount()}/{totalQuestions}</span>
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans selection:bg-yellow-200">
+
+      {/* --- Top Sticky Header (Matches Sidebar UI) --- */}
+      <header className="bg-[#0A0A0A] text-white sticky top-0 z-40 shadow-xl border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+
+          {/* Left: Info */}
+          <div className="flex-1 min-w-0 pr-4">
+            <h1 className="text-lg sm:text-xl font-black truncate">
+              {attempt.quiz.title}
+            </h1>
+            <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+              <span>Q {currentQuestionIndex + 1} of {totalQuestions}</span>
+              <span className="w-1 h-1 rounded-full bg-gray-700 hidden sm:block"></span>
+              <span className="hidden sm:block text-gray-300">Answered: {answeredCount}</span>
+
               {proctorConnected && (
                 <>
-                  <span>•</span>
-                  <span className="text-green-600 font-medium">🟢 Proctoring Active</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-700"></span>
+                  <span className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <ShieldCheck size={12} /> Proctored
+                  </span>
                 </>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Camera Indicator */}
+          {/* Right: Security & Timer */}
+          <div className="flex items-center gap-4 shrink-0">
             {attempt.quiz.antiCheatSettings?.enableWebcamProctoring && (
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  className="w-24 h-24 rounded-lg border-2 border-green-500 object-cover"
-                />
-                <div className="absolute top-1 right-1 w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+              <div className="relative hidden sm:block w-24 h-14 bg-black rounded-lg overflow-hidden border border-gray-800">
+                <video ref={videoRef} autoPlay muted className="w-full h-full object-cover opacity-80" />
+                <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
               </div>
             )}
 
-            {/* Timer */}
-            <div className="text-right">
-              <div className={`text-3xl font-bold ${timeRemaining < 300 ? 'text-red-600 animate-pulse' :
-                timeRemaining < 600 ? 'text-orange-600' : 'text-blue-600'
-                }`}>
-                {formatTime(timeRemaining)}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Time Remaining</p>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold font-mono text-lg transition-colors ${timeRemaining < 300
+              ? 'bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse'
+              : 'bg-white/5 text-yellow-400 border border-white/10'
+              }`}>
+              <Clock size={20} />
+              {formatTime(timeRemaining)}
             </div>
           </div>
         </div>
 
-        {/* Warning indicators */}
-        <div className="mt-4 flex gap-2 flex-wrap">
-          {tabSwitches > 0 && (
-            <div className="text-sm px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full font-medium">
-              ⚠️ Tab switch warnings: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 2}
-            </div>
-          )}
-          {attempt.quiz.antiCheatSettings?.enableFullScreen && !isFullScreen && (
-            <div className="text-sm px-3 py-1.5 bg-red-100 text-red-700 rounded-full animate-pulse font-medium">
-              ⚠️ Fullscreen required
-            </div>
-          )}
-          {timeRemaining < 300 && (
-            <div className="text-sm px-3 py-1.5 bg-red-100 text-red-700 rounded-full font-medium">
-              ⏰ Less than 5 minutes remaining!
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Question Content */}
-      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-6 mb-4">
-        <div className="mb-6">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
-              Question {currentQuestionIndex + 1}
-            </h2>
-            <span className="bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full text-sm font-semibold">
-              {currentQuestion.marks || 1} {(currentQuestion.marks || 1) === 1 ? 'mark' : 'marks'}
-            </span>
+        {/* Warning Banner Row */}
+        {(tabSwitches > 0 || (!isFullScreen && attempt.quiz.antiCheatSettings?.enableFullScreen)) && (
+          <div className="bg-red-500 text-white px-4 py-2 flex gap-6 text-xs font-bold justify-center">
+            {tabSwitches > 0 && (
+              <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Tab Switches: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 2}</span>
+            )}
+            {!isFullScreen && attempt.quiz.antiCheatSettings?.enableFullScreen && (
+              <span className="flex items-center gap-1.5"><MonitorOff size={14} /> Fullscreen Required</span>
+            )}
           </div>
+        )}
+      </header>
 
-          <div className="bg-gray-50 p-5 rounded-lg border-l-4 border-blue-600">
-            <p className="text-gray-800 text-base leading-relaxed whitespace-pre-line">
+      {/* --- Main Quiz Area --- */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+
+        {/* Question Card (Premium Styling) */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6 sm:p-8 relative overflow-hidden">
+          {/* Subtle decorative background element */}
+          <div className="absolute -top-12 -right-12 w-32 h-32 bg-gray-50 rounded-full opacity-50"></div>
+
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-6 gap-4">
+              <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                Question {currentQuestionIndex + 1}
+              </span>
+              <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-md border border-yellow-200">
+                {currentQuestion.marks || 1} Points
+              </span>
+            </div>
+
+            <p className="text-lg sm:text-xl text-gray-900 font-medium leading-relaxed whitespace-pre-line">
               {currentQuestion.prompt}
             </p>
+
+            {currentQuestion.type === 'mcq_multi' && (
+              <p className="mt-4 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>
+                Select all correct answers
+              </p>
+            )}
           </div>
         </div>
 
         {/* Answer Options */}
-        <div className="space-y-3">
-          {currentQuestion.type === 'mcq_single' && currentQuestion.choices && (
-            <>
-              {currentQuestion.choices.map((choice, idx) => (
-                <label
-                  key={choice.id}
-                  className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${answers[currentQuestion.question._id] === choice.id
-                    ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
-                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                    }`}
-                >
-                  <div className="flex items-start">
-                    <input
-                      type="radio"
-                      name={currentQuestion.question._id}
-                      value={choice.id}
-                      checked={answers[currentQuestion.question._id] === choice.id}
-                      onChange={(e) => handleAnswerChange(currentQuestion.question._id, e.target.value)}
-                      className="mt-1 mr-3 w-5 h-5"
-                    />
-                    <span className="flex-1">
-                      <span className="font-bold text-gray-700 mr-3 bg-gray-100 px-2 py-1 rounded">
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      {choice.text}
-                    </span>
-                  </div>
-                </label>
-              ))}
-            </>
-          )}
+        <div className="space-y-4">
+          {currentQuestion.choices?.map((choice, idx) => {
+            const isMulti = currentQuestion.type === 'mcq_multi';
+            const isSelected = isMulti
+              ? (answers[currentQuestion.question._id] || []).includes(choice.id)
+              : answers[currentQuestion.question._id] === choice.id;
 
-          {currentQuestion.type === 'mcq_multi' && currentQuestion.choices && (
-            <>
-              <p className="text-sm text-blue-700 mb-3 italic font-medium bg-blue-50 p-2 rounded">
-                ℹ️ Select all that apply
-              </p>
-              {currentQuestion.choices.map((choice, idx) => (
-                <label
-                  key={choice.id}
-                  className={`block p-4 border-2 rounded-xl cursor-pointer transition-all ${(answers[currentQuestion.question._id] || []).includes(choice.id)
-                    ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
-                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                    }`}
-                >
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      value={choice.id}
-                      checked={(answers[currentQuestion.question._id] || []).includes(choice.id)}
-                      onChange={(e) => {
-                        const currentAnswers = answers[currentQuestion.question._id] || [];
-                        const newAnswers = e.target.checked
-                          ? [...currentAnswers, choice.id]
-                          : currentAnswers.filter(id => id !== choice.id);
-                        handleAnswerChange(currentQuestion.question._id, newAnswers);
-                      }}
-                      className="mt-1 mr-3 w-5 h-5"
-                    />
-                    <span className="flex-1">
-                      <span className="font-bold text-gray-700 mr-3 bg-gray-100 px-2 py-1 rounded">
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      {choice.text}
-                    </span>
-                  </div>
-                </label>
-              ))}
-            </>
-          )}
+            return (
+              <label
+                key={choice.id}
+                className={`group flex items-start p-5 sm:p-6 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${isSelected
+                  ? 'border-black bg-gray-50 shadow-sm ring-4 ring-gray-100'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  }`}
+              >
+                <div className="flex items-center justify-center w-6 h-6 mr-4 shrink-0 mt-0.5">
+                  <input
+                    type={isMulti ? "checkbox" : "radio"}
+                    name={currentQuestion.question._id}
+                    value={choice.id}
+                    checked={isSelected}
+                    onChange={(e) => {
+                      if (isMulti) {
+                        const current = answers[currentQuestion.question._id] || [];
+                        const updated = e.target.checked
+                          ? [...current, choice.id]
+                          : current.filter(id => id !== choice.id);
+                        handleAnswerChange(currentQuestion.question._id, updated);
+                      } else {
+                        handleAnswerChange(currentQuestion.question._id, e.target.value);
+                      }
+                    }}
+                    className={`w-5 h-5 cursor-pointer accent-black ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'} transition-opacity`}
+                  />
+                </div>
+                <div className="flex-1 flex gap-4">
+                  <span className={`font-bold shrink-0 ${isSelected ? 'text-black' : 'text-gray-400'}`}>
+                    {String.fromCharCode(65 + idx)}.
+                  </span>
+                  <span className={`text-base font-medium ${isSelected ? 'text-black' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                    {choice.text}
+                  </span>
+                </div>
+              </label>
+            );
+          })}
         </div>
-      </div>
+      </main>
 
-      {/* Navigation */}
-      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-5 mb-4">
-        <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
-
-          <button
-            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentQuestionIndex === 0 || isAutoSubmittingRef.current}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 disabled:opacity-50"
-          >
-            ← Previous
-          </button>
+      {/* --- Bottom Navigation Bar --- */}
+      <footer className="bg-white border-t border-gray-200 p-4 sm:px-6 sticky bottom-0 z-30 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
 
           <button
             onClick={() => setShowNavigator(!showNavigator)}
-            disabled={isAutoSubmittingRef.current}
-            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
+            className="w-full sm:w-auto px-5 py-3 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            {showNavigator ? 'Hide' : 'Show'} Navigator
+            <LayoutGrid size={18} />
+            {showNavigator ? 'Close Grid' : 'Question Grid'}
           </button>
 
-          {currentQuestionIndex < totalQuestions - 1 ? (
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
-              onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-              disabled={isAutoSubmittingRef.current}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+              onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentQuestionIndex === 0 || isAutoSubmittingRef.current}
+              className="flex-1 sm:flex-none px-6 py-3 text-sm font-bold text-gray-900 bg-white border-2 border-gray-200 hover:bg-gray-50 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
-              Next →
+              <ArrowLeft size={16} /> Prev
             </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || isAutoSubmittingRef.current}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
-            >
-              {submitting ? "Submitting..." : "Submit Quiz ✓"}
-            </button>
-          )}
+
+            {currentQuestionIndex < totalQuestions - 1 ? (
+              <button
+                onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                disabled={isAutoSubmittingRef.current}
+                className="flex-1 sm:flex-none px-6 py-3 text-sm font-bold text-gray-900 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(250,204,21,0.2)] flex items-center justify-center gap-2"
+              >
+                Next <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || isAutoSubmittingRef.current}
+                className="flex-1 sm:flex-none px-8 py-3 text-sm font-bold text-white bg-[#0A0A0A] hover:bg-black rounded-xl disabled:opacity-50 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                {submitting ? "Submitting..." : "Submit Assessment"}
+              </button>
+            )}
+          </div>
         </div>
 
+        {/* Expandable Navigator Drawer */}
         {showNavigator && (
-          <div className="border-t pt-4">
-            <p className="text-sm text-gray-600 mb-3 font-semibold">Question Navigator</p>
+          <div className="max-w-4xl mx-auto mt-6 pt-6 border-t border-gray-100 animate-in slide-in-from-bottom-2">
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+              {attempt.selectedQuestions.map((q, idx) => {
+                const isAnswered = answers[q.question?._id] && answers[q.question?._id].length !== 0;
+                const isCurrent = idx === currentQuestionIndex;
 
-            <div className="flex gap-2 flex-wrap">
-              {attempt.selectedQuestions.map((q, idx) => (
-                <button
-                  key={q.question?._id || idx}
-                  onClick={() => setCurrentQuestionIndex(idx)}
-                  disabled={isAutoSubmittingRef.current}
-                  className={`w-12 h-12 rounded-lg font-semibold transition ${idx === currentQuestionIndex
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-300'
-                    : answers[q.question?._id]
-                      ? 'bg-green-200 text-green-800 hover:bg-green-300'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                >
-                  {idx + 1}
-                </button>
-              ))}
+                let btnStyle = "bg-white border-gray-200 text-gray-500 hover:border-black hover:text-black"; // Unanswered
+                if (isAnswered) btnStyle = "bg-black border-black text-white"; // Answered
+                if (isCurrent) btnStyle = "bg-yellow-400 border-yellow-400 text-black shadow-md ring-2 ring-yellow-400/30"; // Current
+
+                return (
+                  <button
+                    key={q.question?._id || idx}
+                    onClick={() => {
+                      setCurrentQuestionIndex(idx);
+                      setShowNavigator(false);
+                    }}
+                    disabled={isAutoSubmittingRef.current}
+                    className={`w-10 h-10 rounded-xl text-sm font-bold border-2 ${btnStyle} transition-all`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mt-4 flex gap-4 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-blue-600 rounded"></div>
-                <span>Current</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-green-200 rounded"></div>
-                <span>Answered</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-gray-200 rounded"></div>
-                <span>Not Answered</span>
-              </div>
+            <div className="mt-6 flex justify-center sm:justify-start gap-6 text-xs font-bold text-gray-400 uppercase tracking-widest">
+              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-400 rounded-sm"></div> Current</span>
+              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-black rounded-sm"></div> Answered</span>
+              <span className="flex items-center gap-2"><div className="w-3 h-3 bg-white border-2 border-gray-200 rounded-sm"></div> Pending</span>
             </div>
           </div>
         )}
-      </div>
+      </footer>
     </div>
   );
 };

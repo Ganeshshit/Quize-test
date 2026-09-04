@@ -16,7 +16,7 @@ import ReviewAttempts from "../pages/trainer/ReviewAttempts";
 import QuizDetails from "../pages/trainer/QuizDetails";
 import QuizMonitor from "../pages/trainer/QuizMonitor";
 import AttemptDetails from "../pages/trainer/AttemptDetails";
-import QuizEnrollment from "../pages/trainer/QuizeEnrollment"; // NEW
+import QuizEnrollment from "../pages/trainer/QuizeEnrollment";
 
 // STUDENT pages
 import StudentDashboard from "../pages/student/Dashboard";
@@ -29,6 +29,7 @@ import EnrolledQuizList from "../pages/student/EnrolledQuizList";
 import QuizStart from "../pages/student/QuizStart";
 import QuizResult from "../pages/student/QuizResult";
 import QuizStartInstructions from "../pages/student/QuizStartInstructions";
+import StudentResults from "../pages/student/Results"; // ADDED RESULTS IMPORT
 
 export const routes = [
     // ------------------- AUTH --------------------
@@ -151,6 +152,12 @@ export const routes = [
                 roles: ["student", "admin"],
             },
             {
+                path: "results",
+                element: <StudentResults />, // ADDED RESULTS ROUTE
+                protected: true,
+                roles: ["student", "admin"],
+            },
+            {
                 path: "history",
                 element: <StudentHistory />,
                 protected: true,
@@ -168,7 +175,7 @@ export const routes = [
     // ------------------- STUDENT QUIZ FLOW --------------------
     {
         path: "/student/quiz/:id/start",
-        element: <QuizStartInstructions/>,
+        element: <QuizStartInstructions />,
         protected: true,
         roles: ["student", "admin"],
     },
