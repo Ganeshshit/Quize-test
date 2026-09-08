@@ -1,9 +1,15 @@
+// src/pages/trainer/CreateQuiz.jsx
 import React, { useState, useEffect } from "react";
 import TrainerLayout from "../../components/Layout/TrainerLayout";
 import { quizzesAPI } from "../../api/quizzes.api";
 import { subjectsAPI } from "../../api/subjects.api";
 import { questionsAPI } from "../../api/questions.api";
 import { useNavigate } from "react-router-dom";
+import {
+  Settings, Clock, Calendar, CheckCircle2,
+  AlertTriangle, Save, Play, Shuffle,
+  ListChecks, BookOpen, Layers, Info
+} from "lucide-react";
 
 const CreateQuiz = () => {
   const navigate = useNavigate();
@@ -144,51 +150,30 @@ const CreateQuiz = () => {
     });
   };
 
-  // ✅ CLEAN PAYLOAD HELPER - Removes empty strings
+  // ✅ CLEAN PAYLOAD HELPER
   const cleanPayload = (data) => {
     const cleaned = { ...data };
 
-    // Clean top-level empty strings
     Object.keys(cleaned).forEach(key => {
       if (cleaned[key] === "" || cleaned[key] === null) {
         delete cleaned[key];
       }
     });
 
-    // Clean questionPoolFilter
     if (cleaned.questionPoolFilter) {
       const poolFilter = { ...cleaned.questionPoolFilter };
-
-      // Remove empty subject
-      if (!poolFilter.subject || poolFilter.subject === "") {
-        delete poolFilter.subject;
-      }
-
-      // Remove empty arrays
-      if (Array.isArray(poolFilter.difficulty) && poolFilter.difficulty.length === 0) {
-        delete poolFilter.difficulty;
-      }
-      if (Array.isArray(poolFilter.tags) && poolFilter.tags.length === 0) {
-        delete poolFilter.tags;
-      }
-
+      if (!poolFilter.subject || poolFilter.subject === "") delete poolFilter.subject;
+      if (Array.isArray(poolFilter.difficulty) && poolFilter.difficulty.length === 0) delete poolFilter.difficulty;
+      if (Array.isArray(poolFilter.tags) && poolFilter.tags.length === 0) delete poolFilter.tags;
       cleaned.questionPoolFilter = poolFilter;
     }
 
-    // Clean targetAudience
     if (cleaned.targetAudience) {
       const audience = { ...cleaned.targetAudience };
-      if (Array.isArray(audience.semesters) && audience.semesters.length === 0) {
-        delete audience.semesters;
-      }
-      if (Array.isArray(audience.departments) && audience.departments.length === 0) {
-        delete audience.departments;
-      }
-      if (Array.isArray(audience.specificStudents) && audience.specificStudents.length === 0) {
-        delete audience.specificStudents;
-      }
+      if (Array.isArray(audience.semesters) && audience.semesters.length === 0) delete audience.semesters;
+      if (Array.isArray(audience.departments) && audience.departments.length === 0) delete audience.departments;
+      if (Array.isArray(audience.specificStudents) && audience.specificStudents.length === 0) delete audience.specificStudents;
 
-      // If targetAudience is now empty, remove it
       if (Object.keys(audience).length === 0) {
         delete cleaned.targetAudience;
       } else {
@@ -202,7 +187,6 @@ const CreateQuiz = () => {
   // ✅ VALIDATION HELPER
   const getValidationErrors = () => {
     const errors = [];
-
     if (!formData.title) errors.push("Title is required");
     if (!formData.startTime) errors.push("Start time is required");
     if (!formData.endTime) errors.push("End time is required");
@@ -230,11 +214,10 @@ const CreateQuiz = () => {
     return errors;
   };
 
-  // ✅ SAVE AS DRAFT - More flexible validation
+  // ✅ SAVE AS DRAFT
   const handleSaveDraft = async (e) => {
     e.preventDefault();
 
-    // Only require title for draft
     if (!formData.title.trim()) {
       alert("Title is required");
       return;
@@ -264,11 +247,9 @@ const CreateQuiz = () => {
         category: formData.category || undefined
       };
 
-      // Add scheduling if provided
       if (formData.startTime) payload.startTime = formData.startTime;
       if (formData.endTime) payload.endTime = formData.endTime;
 
-      // Handle question mode specific fields
       if (formData.questionMode === "fixed_list") {
         payload.questionIds = formData.questionIds;
       } else if (formData.questionMode === "pool_random") {
@@ -280,27 +261,18 @@ const CreateQuiz = () => {
         };
         payload.questionIds = [];
       } else {
-        // questionMode: "none"
         payload.questionIds = [];
       }
 
-      // Add targetAudience if any values are set
       const hasTargetAudience =
         formData.targetAudience.semesters.length > 0 ||
         formData.targetAudience.departments.length > 0 ||
         formData.targetAudience.specificStudents.length > 0;
 
-      if (hasTargetAudience) {
-        payload.targetAudience = formData.targetAudience;
-      }
+      if (hasTargetAudience) payload.targetAudience = formData.targetAudience;
 
-      // Clean the payload
       payload = cleanPayload(payload);
-
-      console.log("Draft payload:", payload);
-
       const res = await quizzesAPI.create(payload);
-
       alert("✅ Quiz saved as draft!");
       navigate("/trainer/quizzes");
     } catch (err) {
@@ -311,7 +283,7 @@ const CreateQuiz = () => {
     }
   };
 
-  // ✅ CREATE & PUBLISH - Full validation
+  // ✅ CREATE & PUBLISH
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -347,18 +319,10 @@ const CreateQuiz = () => {
         category: formData.category || undefined
       };
 
-      // Handle question mode specific fields
       if (formData.questionMode === "fixed_list") {
         payload.questionIds = formData.questionIds;
-
-        // Recalculate totalMarks based on selected questions
-        const selectedQuestions = questions.filter(q =>
-          payload.questionIds.includes(q._id)
-        );
-        payload.totalMarks = selectedQuestions.reduce(
-          (sum, q) => sum + (q.marks || 1),
-          0
-        );
+        const selectedQuestions = questions.filter(q => payload.questionIds.includes(q._id));
+        payload.totalMarks = selectedQuestions.reduce((sum, q) => sum + (q.marks || 1), 0);
       } else if (formData.questionMode === "pool_random") {
         payload.questionPoolFilter = {
           subject: formData.subject || undefined,
@@ -370,534 +334,463 @@ const CreateQuiz = () => {
         payload.questionIds = [];
       }
 
-      // Add targetAudience if any values are set
       const hasTargetAudience =
         formData.targetAudience.semesters.length > 0 ||
         formData.targetAudience.departments.length > 0 ||
         formData.targetAudience.specificStudents.length > 0;
 
-      if (hasTargetAudience) {
-        payload.targetAudience = formData.targetAudience;
-      }
+      if (hasTargetAudience) payload.targetAudience = formData.targetAudience;
 
-      // Clean the payload
       payload = cleanPayload(payload);
-
-      console.log("Create quiz payload:", payload);
-
       const res = await quizzesAPI.create(payload);
-
       alert("✅ Quiz created successfully!");
       navigate("/trainer/quizzes");
     } catch (err) {
       console.error("Create quiz error:", err);
       const errorMsg = err.response?.data?.error || "Failed to create quiz";
-      const details = err.response?.data?.details
-        ? "\n\nDetails:\n" + JSON.stringify(err.response.data.details, null, 2)
-        : "";
+      const details = err.response?.data?.details ? "\n\nDetails:\n" + JSON.stringify(err.response.data.details, null, 2) : "";
       alert(errorMsg + details);
     } finally {
       setLoading(false);
     }
   };
 
+  const inputClass = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-black transition-colors";
+  const labelClass = "block text-xs font-bold text-gray-900 uppercase tracking-widest mb-2";
+
   return (
     <TrainerLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Create New Quiz</h1>
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto w-full font-sans selection:bg-yellow-200">
 
-        {/* ✅ PROGRESS BAR */}
-        <div className="mt-4">
-          <div className="flex justify-between text-sm mb-1">
-            <span>Setup Progress</span>
-            <span className="font-semibold">{completionPercentage}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
-              style={{ width: `${completionPercentage}%` }}
-            />
+        {/* Header & Progress */}
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Create New Quiz</h1>
+
+          <div className="mt-6 max-w-2xl">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Setup Progress</span>
+              <span className="text-sm font-black text-gray-900">{completionPercentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      <form className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* LEFT SIDE */}
-        <div className="space-y-5">
-          {/* ✅ TITLE - REQUIRED */}
-          <div>
-            <label className="font-semibold text-red-600">Quiz Title *</label>
-            <input
-              type="text"
-              className="w-full border p-2 rounded mt-1"
-              value={formData.title}
-              onChange={(e) => update("title", e.target.value)}
-              placeholder="Enter quiz title"
-              required
-            />
-          </div>
+        <form className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8 relative items-start">
 
-          {/* ✅ DESCRIPTION - OPTIONAL */}
-          <div>
-            <label className="font-semibold block mb-1">Description</label>
-            <textarea
-              className="w-full border p-2 rounded"
-              rows="3"
-              value={formData.description}
-              onChange={(e) => update("description", e.target.value)}
-              placeholder="Brief description of the quiz (optional)"
-            />
-          </div>
+          {/* ================= LEFT COLUMN ================= */}
+          <div className="xl:col-span-2 space-y-6">
 
-          {/* ✅ SUBJECT - OPTIONAL */}
-          <div>
-            <label className="font-semibold block mb-1">Subject</label>
-            <select
-              className="w-full border p-2 rounded"
-              value={formData.subject}
-              onChange={(e) => update("subject", e.target.value)}
-            >
-              <option value="">Select subject (optional)</option>
-              {subjects.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Can be added later
-            </p>
-          </div>
-
-          {/* ✅ QUESTION MODE */}
-          <div>
-            <label className="font-semibold block mb-1">Question Mode</label>
-            <select
-              className="w-full border p-2 rounded"
-              value={formData.questionMode}
-              onChange={(e) => {
-                update("questionMode", e.target.value);
-                // Reset related fields when mode changes
-                if (e.target.value === "none") {
-                  update("questionIds", []);
-                }
-              }}
-            >
-              <option value="none">No questions yet (add later)</option>
-              <option value="fixed_list">Fixed List</option>
-              <option value="pool_random">Random From Pool</option>
-            </select>
-          </div>
-
-          {/* POOL RANDOM SETTINGS */}
-          {formData.questionMode === "pool_random" && (
-            <div className="border p-4 rounded space-y-3 bg-blue-50">
-              <h2 className="font-semibold text-lg">📝 Random Pool Settings</h2>
-
-              <div>
-                <label className="font-semibold block mb-1">
-                  Number of Questions *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full border p-2 rounded"
-                  value={formData.questionPoolFilter?.count || 10}
-                  onChange={(e) =>
-                    update("questionPoolFilter", {
-                      ...formData.questionPoolFilter,
-                      count: Math.max(1, Number(e.target.value) || 1)
-                    })
-                  }
-                />
+            {/* General Info Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+              <div className="flex items-center gap-2 mb-2 border-b border-gray-100 pb-4">
+                <BookOpen size={20} className="text-yellow-500" />
+                <h2 className="text-lg font-black text-gray-900">General Information</h2>
               </div>
 
               <div>
-                <label className="font-semibold block mb-1">
-                  Pool Subject (optional)
-                </label>
-                <select
-                  className="w-full border p-2 rounded"
-                  value={formData.questionPoolFilter?.subject || ""}
-                  onChange={(e) =>
-                    update("questionPoolFilter", {
-                      ...formData.questionPoolFilter,
-                      subject: e.target.value
-                    })
-                  }
-                >
-                  <option value="">Any subject</option>
-                  {subjects.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave empty to pull from all subjects
-                </p>
-              </div>
-
-              <div>
-                <label className="font-semibold block mb-1">
-                  Difficulty (optional)
-                </label>
-                <select
-                  multiple
-                  size="3"
-                  className="w-full border p-2 rounded"
-                  value={formData.questionPoolFilter?.difficulty || []}
-                  onChange={(e) =>
-                    update("questionPoolFilter", {
-                      ...formData.questionPoolFilter,
-                      difficulty: Array.from(
-                        e.target.selectedOptions,
-                        (option) => option.value
-                      )
-                    })
-                  }
-                >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Hold Ctrl/Cmd to select multiple
-                </p>
-              </div>
-
-              <div>
-                <label className="font-semibold block mb-1">Tags (optional)</label>
+                <label className={labelClass}>Quiz Title <span className="text-red-500">*</span></label>
                 <input
                   type="text"
-                  placeholder="comma separated: loops,arrays,functions"
-                  className="w-full border p-2 rounded"
-                  onChange={(e) =>
-                    update("questionPoolFilter", {
-                      ...formData.questionPoolFilter,
-                      tags: e.target.value
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter((t) => t)
-                    })
-                  }
+                  className={inputClass}
+                  value={formData.title}
+                  onChange={(e) => update("title", e.target.value)}
+                  placeholder="e.g., Midterm Evaluation 2026"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Description</label>
+                <textarea
+                  className={`${inputClass} min-h-[100px] resize-y`}
+                  value={formData.description}
+                  onChange={(e) => update("description", e.target.value)}
+                  placeholder="Brief description of the quiz objectives..."
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Subject</label>
+                <select
+                  className={inputClass}
+                  value={formData.subject}
+                  onChange={(e) => update("subject", e.target.value)}
+                >
+                  <option value="">Select subject (optional)</option>
+                  {subjects.map((s) => (
+                    <option key={s._id} value={s._id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Questions Configuration Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+              <div className="flex items-center gap-2 mb-2 border-b border-gray-100 pb-4">
+                <Layers size={20} className="text-yellow-500" />
+                <h2 className="text-lg font-black text-gray-900">Questions Setup</h2>
+              </div>
+
+              <div>
+                <label className={labelClass}>Question Mode</label>
+                <select
+                  className={inputClass}
+                  value={formData.questionMode}
+                  onChange={(e) => {
+                    update("questionMode", e.target.value);
+                    if (e.target.value === "none") update("questionIds", []);
+                  }}
+                >
+                  <option value="none">No questions yet (Add later)</option>
+                  <option value="fixed_list">Fixed List (Manually Select)</option>
+                  <option value="pool_random">Random From Pool</option>
+                </select>
+              </div>
+
+              {/* POOL RANDOM SETTINGS */}
+              {formData.questionMode === "pool_random" && (
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 space-y-5 animate-in fade-in duration-300">
+                  <h3 className="font-black text-sm uppercase tracking-widest flex items-center gap-2 text-gray-900 mb-4">
+                    <Shuffle size={16} /> Random Pool Settings
+                  </h3>
+
+                  <div>
+                    <label className={labelClass}>Number of Questions <span className="text-red-500">*</span></label>
+                    <input
+                      type="number"
+                      min="1"
+                      className={inputClass}
+                      value={formData.questionPoolFilter?.count || 10}
+                      onChange={(e) =>
+                        update("questionPoolFilter", {
+                          ...formData.questionPoolFilter,
+                          count: Math.max(1, Number(e.target.value) || 1)
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Pool Subject</label>
+                    <select
+                      className={inputClass}
+                      value={formData.questionPoolFilter?.subject || ""}
+                      onChange={(e) =>
+                        update("questionPoolFilter", { ...formData.questionPoolFilter, subject: e.target.value })
+                      }
+                    >
+                      <option value="">Any subject (Global Pool)</option>
+                      {subjects.map((s) => (
+                        <option key={s._id} value={s._id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Difficulty filter</label>
+                    <select
+                      multiple
+                      size="3"
+                      className={`${inputClass} py-2`}
+                      value={formData.questionPoolFilter?.difficulty || []}
+                      onChange={(e) =>
+                        update("questionPoolFilter", {
+                          ...formData.questionPoolFilter,
+                          difficulty: Array.from(e.target.selectedOptions, (o) => o.value)
+                        })
+                      }
+                    >
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Hold Ctrl/Cmd to select multiple</p>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Tags filter</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. loops, arrays, functions"
+                      className={inputClass}
+                      onChange={(e) =>
+                        update("questionPoolFilter", {
+                          ...formData.questionPoolFilter,
+                          tags: e.target.value.split(",").map((t) => t.trim()).filter((t) => t)
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* FIXED LIST SELECTOR */}
+              {formData.questionMode === "fixed_list" && (
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 animate-in fade-in duration-300">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-black text-sm uppercase tracking-widest flex items-center gap-2 text-gray-900">
+                      <ListChecks size={16} /> Select Questions
+                    </h3>
+                    <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-md border border-yellow-200">
+                      {formData.questionIds.length} Selected
+                    </span>
+                  </div>
+
+                  {questions.length === 0 ? (
+                    <div className="text-center py-10 bg-white rounded-xl border border-gray-200">
+                      <p className="text-sm font-bold text-gray-500 mb-3">No questions available in the bank.</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/trainer/questions/create")}
+                        className="text-xs font-bold text-[#0A0A0A] uppercase tracking-widest hover:text-yellow-600 transition-colors"
+                      >
+                        + Create questions first
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-xl bg-white custom-scrollbar divide-y divide-gray-100">
+                      {questions.map((q) => {
+                        const isSelected = formData.questionIds.includes(q._id);
+                        return (
+                          <label
+                            key={q._id}
+                            className={`flex items-start gap-4 p-4 cursor-pointer transition-colors ${isSelected ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleQuestion(q._id)}
+                              className="mt-1 w-4 h-4 accent-black cursor-pointer"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium truncate ${isSelected ? 'text-black' : 'text-gray-700'}`}>
+                                {q.prompt}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                <span>Marks: {q.marks || 1}</span>
+                                <span>Type: {q.type}</span>
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Logistics & Schedule Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+              <div className="flex items-center gap-2 mb-2 border-b border-gray-100 pb-4">
+                <Calendar size={20} className="text-yellow-500" />
+                <h2 className="text-lg font-black text-gray-900">Logistics & Schedule</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={labelClass}>Duration (minutes)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className={inputClass}
+                    value={formData.durationMinutes}
+                    onChange={(e) => update("durationMinutes", Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Attempts Allowed</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className={inputClass}
+                    value={formData.attemptsAllowed}
+                    onChange={(e) => update("attemptsAllowed", Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
+                <div>
+                  <label className={labelClass}>Start Time <span className="text-red-500">*</span></label>
+                  <input
+                    type="datetime-local"
+                    className={inputClass}
+                    value={formData.startTime}
+                    onChange={(e) => update("startTime", e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>End Time <span className="text-red-500">*</span></label>
+                  <input
+                    type="datetime-local"
+                    className={inputClass}
+                    value={formData.endTime}
+                    onChange={(e) => update("endTime", e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {formData.startTime && formData.endTime && new Date(formData.startTime) >= new Date(formData.endTime) && (
+                <div className="flex items-center gap-2 bg-red-50 text-red-600 p-3 rounded-lg text-xs font-bold uppercase tracking-widest border border-red-100">
+                  <AlertTriangle size={14} /> End time must be after start time
+                </div>
+              )}
+            </div>
+
+            {/* Instructions Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+              <div className="flex items-center gap-2 mb-2 border-b border-gray-100 pb-4">
+                <Info size={20} className="text-yellow-500" />
+                <h2 className="text-lg font-black text-gray-900">Student Instructions</h2>
+              </div>
+              <div>
+                <textarea
+                  className={`${inputClass} min-h-[120px] resize-y`}
+                  value={formData.instructions}
+                  onChange={(e) => update("instructions", e.target.value)}
+                  placeholder="Enter specific guidelines, rules, or prerequisites for the students before they start..."
                 />
               </div>
             </div>
-          )}
 
-          {/* FIXED LIST SELECTOR */}
-          {formData.questionMode === "fixed_list" && (
-            <div className="border p-4 rounded bg-green-50">
-              <label className="font-semibold block mb-2">
-                📋 Select Questions
-              </label>
+          </div>
 
-              {questions.length === 0 ? (
-                <div className="text-center py-6 text-gray-500">
-                  <p className="mb-2">No questions available</p>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/trainer/questions/create")}
-                    className="text-blue-600 underline text-sm"
-                  >
-                    Create questions first
-                  </button>
+          {/* ================= RIGHT COLUMN (Sticky) ================= */}
+          <div className="xl:col-span-1 space-y-6 xl:sticky xl:top-[100px]">
+
+            {/* Live Summary Card */}
+            <div className="bg-[#0A0A0A] p-6 rounded-3xl border border-gray-800 shadow-xl text-white relative overflow-hidden">
+              <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-yellow-400 rounded-full opacity-10 blur-3xl pointer-events-none"></div>
+
+              <h2 className="text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-yellow-400" /> Quiz Summary
+              </h2>
+
+              <div className="space-y-4 text-sm font-medium">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <span className="text-gray-400">Mode</span>
+                  <span className="capitalize font-bold bg-white/10 px-2 py-1 rounded">{formData.questionMode.replace("_", " ")}</span>
                 </div>
-              ) : (
-                <div className="max-h-60 overflow-y-scroll border rounded p-3 space-y-2 bg-white">
-                  {questions.map((q) => (
-                    <label
-                      key={q._id}
-                      className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.questionIds.includes(q._id)}
-                        onChange={() => toggleQuestion(q._id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <span className="text-sm">{q.prompt}</span>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Marks: {q.marks || 1} | Type: {q.type}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
+
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <span className="text-gray-400">Questions</span>
+                  <span className="font-bold">{selectedQuestionCount} {formData.questionMode === "none" && "(Not set)"}</span>
                 </div>
-              )}
 
-              {questions.length > 0 && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Selected: {formData.questionIds.length} question(s)
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* DURATION */}
-          <div>
-            <label className="font-semibold block mb-1">Duration (minutes)</label>
-            <input
-              type="number"
-              min="1"
-              className="w-full border p-2 rounded"
-              value={formData.durationMinutes}
-              onChange={(e) =>
-                update("durationMinutes", Math.max(1, Number(e.target.value) || 1))
-              }
-            />
-          </div>
-
-          {/* ATTEMPTS */}
-          <div>
-            <label className="font-semibold block mb-1">Attempts Allowed</label>
-            <input
-              type="number"
-              min="1"
-              className="w-full border p-2 rounded"
-              value={formData.attemptsAllowed}
-              onChange={(e) =>
-                update("attemptsAllowed", Math.max(1, Number(e.target.value) || 1))
-              }
-            />
-          </div>
-
-          {/* ✅ SCHEDULE */}
-          <div className="border p-4 rounded space-y-3 bg-yellow-50">
-            <h2 className="font-semibold text-lg">📅 Schedule</h2>
-
-            <div>
-              <label className="font-semibold text-red-600 block mb-1">
-                Start Time *
-              </label>
-              <input
-                type="datetime-local"
-                className="w-full border p-2 rounded"
-                value={formData.startTime}
-                onChange={(e) => update("startTime", e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-red-600 block mb-1">
-                End Time *
-              </label>
-              <input
-                type="datetime-local"
-                className="w-full border p-2 rounded"
-                value={formData.endTime}
-                onChange={(e) => update("endTime", e.target.value)}
-                required
-              />
-            </div>
-
-            {formData.startTime && formData.endTime &&
-              new Date(formData.startTime) >= new Date(formData.endTime) && (
-                <p className="text-red-600 text-sm font-semibold">
-                  ⚠️ End time must be after start time
-                </p>
-              )}
-          </div>
-        </div>
-
-        {/* RIGHT SIDE */}
-        <div className="space-y-6">
-          {/* ✅ LIVE SUMMARY */}
-          <div className="border p-4 rounded bg-blue-50 sticky top-4">
-            <h2 className="font-semibold text-lg mb-3">📊 Quiz Summary</h2>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <strong>Mode:</strong>
-                <span className="capitalize">
-                  {formData.questionMode.replace("_", " ")}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <strong>Questions:</strong>
-                <span>
-                  {selectedQuestionCount}
-                  {formData.questionMode === "none" && " (not set)"}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <strong>Total Marks:</strong>
-                <span className="font-semibold text-blue-700">
-                  {autoCalculatedMarks}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <strong>Passing Marks:</strong>
-                <span>{formData.passingMarks}</span>
-              </div>
-
-              {formData.passingMarks > autoCalculatedMarks && autoCalculatedMarks > 0 && (
-                <p className="text-red-600 font-semibold text-xs mt-2 p-2 bg-red-50 rounded">
-                  ⚠️ Passing marks exceeds total marks!
-                </p>
-              )}
-
-              <div className="flex justify-between">
-                <strong>Duration:</strong>
-                <span>{formData.durationMinutes} min</span>
-              </div>
-
-              <div className="flex justify-between">
-                <strong>Attempts:</strong>
-                <span>{formData.attemptsAllowed}</span>
-              </div>
-
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between">
-                  <strong>Completion:</strong>
-                  <span className="font-semibold">{completionPercentage}%</span>
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <span className="text-gray-400">Total Marks</span>
+                  <span className="font-bold text-yellow-400 text-base">{autoCalculatedMarks}</span>
                 </div>
+
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <span className="text-gray-400">Passing Marks</span>
+                  <span className="font-bold">{formData.passingMarks}</span>
+                </div>
+
+                {formData.passingMarks > autoCalculatedMarks && autoCalculatedMarks > 0 && (
+                  <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest bg-red-500/10 p-2 rounded-lg border border-red-500/20">
+                    ⚠️ Passing marks exceeds total
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* SHUFFLE SETTINGS */}
-          <div className="border p-4 rounded space-y-3">
-            <h2 className="font-semibold text-lg">🔀 Shuffle Settings</h2>
+            {/* Grading & Options */}
+            <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-6">
 
-            <label className="flex gap-2 items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.shuffleQuestions}
-                onChange={(e) =>
-                  update("shuffleQuestions", e.target.checked)
-                }
-              />
-              <span>Shuffle Questions</span>
-            </label>
+              {/* Grading */}
+              <div>
+                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Grading Threshold</h3>
+                <label className={labelClass}>Passing Marks</label>
+                <input
+                  type="number"
+                  min="0"
+                  max={autoCalculatedMarks || 100}
+                  className={inputClass}
+                  value={formData.passingMarks}
+                  onChange={(e) => update("passingMarks", Math.max(0, Number(e.target.value) || 0))}
+                />
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">
+                  {autoCalculatedMarks > 0 ? `Maximum possible: ${autoCalculatedMarks}` : "Will adjust based on questions"}
+                </p>
+              </div>
 
-            <label className="flex gap-2 items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.shuffleChoices}
-                onChange={(e) =>
-                  update("shuffleChoices", e.target.checked)
-                }
-              />
-              <span>Shuffle Choices</span>
-            </label>
-          </div>
+              <div className="w-full h-px bg-gray-100"></div>
 
-          {/* MARKS */}
-          <div className="border p-4 rounded space-y-3">
-            <h2 className="font-semibold text-lg">📝 Grading</h2>
+              {/* Toggles */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-2">Quiz Behavior</h3>
 
-            <div>
-              <label className="font-semibold block mb-1">Passing Marks</label>
-              <input
-                type="number"
-                min="0"
-                max={autoCalculatedMarks || 100}
-                className="w-full border p-2 rounded"
-                value={formData.passingMarks}
-                onChange={(e) =>
-                  update("passingMarks", Math.max(0, Number(e.target.value) || 0))
-                }
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {autoCalculatedMarks > 0
-                  ? `Max: ${autoCalculatedMarks}`
-                  : "Will be set based on questions"}
-              </p>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" className="w-4 h-4 accent-black cursor-pointer" checked={formData.shuffleQuestions} onChange={(e) => update("shuffleQuestions", e.target.checked)} />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Shuffle Questions</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" className="w-4 h-4 accent-black cursor-pointer" checked={formData.shuffleChoices} onChange={(e) => update("shuffleChoices", e.target.checked)} />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Shuffle Choices</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" className="w-4 h-4 accent-black cursor-pointer" checked={formData.showResultsImmediately} onChange={(e) => update("showResultsImmediately", e.target.checked)} />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Show results instantly</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" className="w-4 h-4 accent-black cursor-pointer" checked={formData.showCorrectAnswers} onChange={(e) => update("showCorrectAnswers", e.target.checked)} />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Show correct answers</span>
+                </label>
+              </div>
             </div>
-          </div>
 
-          {/* RESULT VISIBILITY */}
-          <div className="border p-4 rounded space-y-3">
-            <h2 className="font-semibold text-lg">👁️ Result Settings</h2>
-
-            <label className="flex gap-2 items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.showResultsImmediately}
-                onChange={(e) =>
-                  update("showResultsImmediately", e.target.checked)
-                }
-              />
-              <span>Show results immediately</span>
-            </label>
-
-            <label className="flex gap-2 items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.showCorrectAnswers}
-                onChange={(e) =>
-                  update("showCorrectAnswers", e.target.checked)
-                }
-              />
-              <span>Show correct answers</span>
-            </label>
-          </div>
-
-          {/* INSTRUCTIONS */}
-          <div className="border p-4 rounded">
-            <h2 className="font-semibold text-lg mb-2">📋 Instructions</h2>
-            <textarea
-              className="w-full border p-2 rounded"
-              rows="4"
-              value={formData.instructions}
-              onChange={(e) => update("instructions", e.target.value)}
-              placeholder="Add instructions for students (optional)..."
-            />
-          </div>
-
-          {/* ✅ ACTION BUTTONS */}
-          <div className="space-y-3">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading || !formData.title}
-              type="button"
-              className="w-full bg-gray-600 text-white p-3 rounded font-semibold hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {loading ? "Saving..." : "💾 Save as Draft"}
-            </button>
-
-            <button
-              onClick={handleSubmit}
-              disabled={loading || getValidationErrors().length > 0}
-              type="button"
-              className="w-full bg-blue-600 text-white p-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {loading ? "Creating..." : "✅ Create Quiz"}
-            </button>
-
-            {/* Validation Errors Display */}
+            {/* Validation Errors */}
             {getValidationErrors().length > 0 && (
-              <div className="bg-red-50 border border-red-200 p-3 rounded text-sm">
-                <p className="font-semibold text-red-700 mb-2">
-                  ⚠️ Please fix these issues:
+              <div className="bg-red-50 border border-red-200 p-5 rounded-2xl animate-in fade-in duration-300">
+                <p className="text-xs font-black text-red-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <AlertTriangle size={14} /> Action Required
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-red-600">
+                <ul className="space-y-2">
                   {getValidationErrors().map((err, i) => (
-                    <li key={i}>{err}</li>
+                    <li key={i} className="text-xs font-bold text-red-600 flex items-start gap-2">
+                      <span className="mt-0.5">•</span> {err}
+                    </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {/* Help Text */}
-            <div className="bg-gray-50 border p-3 rounded text-xs text-gray-600">
-              <p className="font-semibold mb-1">💡 Tips:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li><strong>Save as Draft:</strong> Only title required</li>
-                <li><strong>Create Quiz:</strong> All required fields must be filled</li>
-                <li>Total marks are auto-calculated from questions</li>
-              </ul>
+            {/* Action Buttons */}
+            <div className="space-y-3 sticky bottom-6">
+              <button
+                onClick={handleSubmit}
+                disabled={loading || getValidationErrors().length > 0}
+                type="button"
+                className="w-full py-4 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-black rounded-xl hover:from-yellow-500 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_4px_14px_0_rgba(250,204,21,0.2)] flex items-center justify-center gap-2"
+              >
+                {loading ? "Processing..." : <><Play size={18} /> Publish Quiz</>}
+              </button>
+
+              <button
+                onClick={handleSaveDraft}
+                disabled={loading || !formData.title}
+                type="button"
+                className="w-full py-4 bg-white border-2 border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                <Save size={18} /> Save as Draft
+              </button>
             </div>
+
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </TrainerLayout>
   );
 };
