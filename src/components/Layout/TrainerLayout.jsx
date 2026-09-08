@@ -1,161 +1,246 @@
 // src/components/Layout/TrainerLayout.jsx
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, LayoutDashboard, ClipboardList, Plus, Database, Eye, LogOut } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+    Menu, X, LayoutDashboard, ClipboardList, Plus,
+    Database, Eye, LogOut, ShieldCheck
+} from "lucide-react";
 
-const TrainerLayout = ({ children }) => {
-    const location = useLocation();
-    const [open, setOpen] = useState(false);
+// --- CONSTANTS ---
+// Hoisted outside the component to prevent recreation on every render
+const NAV_ITEMS = [
+    { label: "Dashboard", path: "/trainer/dashboard", icon: LayoutDashboard },
+    { label: "All Quizzes", path: "/trainer/quizzes", icon: ClipboardList },
+    { label: "Create Quiz", path: "/trainer/quizzes/create", icon: Plus },
+    { label: "Question Bank", path: "/trainer/questions", icon: Database },
+    { label: "Review Attempts", path: "/trainer/attempts", icon: Eye },
+];
 
-    const navLinks = [
-        {
-            label: "Dashboard",
-            path: "/trainer/dashboard",
-            icon: <LayoutDashboard size={18} />
-        },
-        {
-            label: "All Quizzes",
-            path: "/trainer/quizzes",
-            icon: <ClipboardList size={18} />
-        },
-        {
-            label: "Create Quiz",
-            path: "/trainer/quizzes/create",
-            icon: <Plus size={18} />
-        },
-        {
-            label: "Question Bank",
-            path: "/trainer/questions",
-            icon: <Database size={18} />
-        },
-        {
-            label: "Review Attempts",
-            path: "/trainer/attempts",
-            icon: <Eye size={18} />
-        },
-    ];
+// --- SUB-COMPONENTS ---
+const NavItem = React.memo(({ item, isActive, onClick }) => {
+    const Icon = item.icon;
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <Link
+            to={item.path}
+            onClick={onClick}
+            className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group
+                ${isActive
+                    ? "bg-gray-900 text-white shadow-md shadow-gray-900/10"
+                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                }
+            `}
+            aria-current={isActive ? "page" : undefined}
+        >
+            <Icon
+                size={18}
+                className={`transition-colors duration-200 ${isActive ? "text-yellow-400" : "text-gray-400 group-hover:text-gray-900"
+                    }`}
+            />
+            <span>{item.label}</span>
+        </Link>
+    );
+});
+NavItem.displayName = "NavItem";
 
-            {/* HEADER */}
-            <header className="sticky top-0 z-50 bg-white shadow-sm border-b flex justify-between items-center px-6 py-4">
+const QuickStatsWidget = React.memo(({ stats }) => (
+    <div className="p-5 border-t border-gray-100 bg-gray-50/60">
+        <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                Quick Stats
+            </h3>
+            <ShieldCheck size={14} className="text-gray-300" />
+        </div>
+        <div className="space-y-3">
+            <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-500 uppercase tracking-wider">Active Quizzes</span>
+                <span className="font-black bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-md border border-yellow-200/60">
+                    {stats.activeQuizzes}
+                </span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-500 uppercase tracking-wider">Total Attempts</span>
+                <span className="font-black bg-gray-200 text-gray-800 px-2 py-0.5 rounded-md">
+                    {stats.totalAttempts}
+                </span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-500 uppercase tracking-wider">Pending Reviews</span>
+                <span className="font-black bg-red-100 text-red-700 px-2 py-0.5 rounded-md border border-red-200/60">
+                    {stats.pendingReviews}
+                </span>
+            </div>
+        </div>
+    </div>
+));
+QuickStatsWidget.displayName = "QuickStatsWidget";
+
+// --- MAIN COMPONENT ---
+const TrainerLayout = ({ children }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // --- LOGOUT FUNCTION ---
+    const handleLogout = () => {
+        // Clear all authentication tokens from local storage
+        localStorage.clear();
+        sessionStorage.clear();
+        // Redirect to the login page
+        navigate("/login");
+    };
+
+    const [quickStats, setQuickStats] = useState({
+        activeQuizzes: 0,
+        totalAttempts: 0,
+        pendingReviews: 0
+    });
+
+    // Handle scroll locking when mobile menu is open
+    useEffect(() => {
+        document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
+        return () => { document.body.style.overflow = "unset"; };
+    }, [isMobileMenuOpen]);
+
+    // Fetch Sidebar Stats
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchQuickStats = async () => {
+            try {
+                // TODO: Replace with actual API call
+                // const res = await trainerAPI.getSidebarStats();
+                // if (res.success && isMounted) setQuickStats(res.data);
+
+                // Simulated Response
+                if (isMounted) {
+                    setQuickStats({
+                        activeQuizzes: 3,
+                        totalAttempts: 145,
+                        pendingReviews: 8
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch sidebar stats:", error);
+            }
+        };
+
+        fetchQuickStats();
+
+        return () => { isMounted = false; };
+    }, []);
+
+    const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
+
+    // Active route matching logic
+    const checkIsActive = useCallback((path) => {
+        return location.pathname.includes(path);
+    }, [location.pathname]);
+
+    return (
+        <div className="min-h-screen flex flex-col font-sans bg-[#F8F9FA] selection:bg-yellow-200">
+
+            {/* Header */}
+            <header className="sticky top-0 z-40 bg-[#0A0A0A] shadow-xl border-b border-gray-800 flex justify-between items-center px-4 sm:px-6 h-20">
                 <div className="flex items-center gap-4">
                     <button
-                        className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition"
-                        onClick={() => setOpen(true)}
+                        type="button"
+                        className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                        aria-label="Toggle navigation menu"
                     >
-                        <Menu size={22} className="text-slate-700" />
+                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
 
-                    <div>
-                        <h1 className="text-xl font-bold text-gray-800">Trainer Panel</h1>
-                        <p className="text-xs text-slate-500">Quiz Management System</p>
+                    <div className="flex flex-col">
+                        <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                            Trainer Panel <span className="w-2 h-2 rounded-full bg-yellow-400 hidden sm:block animate-pulse"></span>
+                        </h1>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                            Quiz Management System
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="hidden sm:block text-right">
-                        <p className="text-sm font-medium text-gray-800">John Trainer</p>
-                        <p className="text-xs text-slate-500">trainer@example.com</p>
-                    </div>
+                <div className="flex items-center gap-4 sm:gap-6">
+                    {/* 1. PROFILE LINK (Strictly wraps only the text and avatar) */}
+                    <Link to="/trainer/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                        <div className="hidden sm:block text-right">
+                            <p className="text-sm font-bold text-white">John Trainer</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">trainer@example.com</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-yellow-400 text-black flex items-center justify-center font-black shadow-[0_0_15px_rgba(250,204,21,0.2)]">
+                            JT
+                        </div>
+                    </Link>
 
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 text-white flex items-center justify-center font-bold shadow-md">
-                        JT
-                    </div>
+                    {/* Divider */}
+                    <div className="w-px h-8 bg-gray-800 hidden sm:block"></div>
 
-                    <button className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition">
+                    {/* 2. LOGOUT BUTTON (Uses the new handleLogout function) */}
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg font-bold transition-colors"
+                    >
                         <LogOut size={18} />
-                        <span className="hidden sm:inline">Logout</span>
+                        <span className="hidden sm:inline text-sm uppercase tracking-widest">Logout</span>
                     </button>
                 </div>
             </header>
 
-            {/* MAIN WRAPPER */}
-            <div className="flex flex-1">
+            {/* Main Layout Container */}
+            <div className="flex flex-1 max-w-[1600px] w-full mx-auto relative">
 
-                {/* SIDEBAR */}
+                {/* Sidebar Menu */}
                 <aside
                     className={`
-                        fixed lg:sticky lg:top-[73px] left-0 
-                        h-full lg:h-[calc(100vh-73px)] w-72 bg-white 
-                        shadow-xl lg:shadow-none border-r p-6 
-                        transform transition-transform duration-300 z-40
-                        ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+                        fixed lg:sticky lg:top-[80px] left-0 
+                        h-[calc(100vh-80px)] w-72 bg-white 
+                        border-r border-gray-200/80 flex flex-col justify-between
+                        transition-transform duration-300 ease-in-out z-50
+                        ${isMobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"}
                     `}
                 >
-                    {/* Close button for mobile */}
-                    <div className="lg:hidden flex justify-between items-center mb-6">
-                        <h2 className="font-bold text-gray-800">Navigation</h2>
+                    <div className="lg:hidden flex justify-between items-center p-5 border-b border-gray-100">
+                        <span className="text-xs font-black text-gray-900 uppercase tracking-widest">Navigation</span>
                         <button
-                            onClick={() => setOpen(false)}
-                            className="p-2 rounded-lg hover:bg-slate-100"
+                            onClick={closeMobileMenu}
+                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                            aria-label="Close menu"
                         >
-                            <X size={22} />
+                            <X size={18} />
                         </button>
                     </div>
 
-                    <nav className="space-y-2">
-                        {navLinks.map((link) => {
-                            const active = location.pathname === link.path;
-                            return (
-                                <Link
-                                    key={link.path}
-                                    to={link.path}
-                                    onClick={() => setOpen(false)}
-                                    className={`
-                                        flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all
-                                        ${active
-                                            ? "bg-blue-50 text-blue-700 border-l-4 border-blue-700 shadow-sm"
-                                            : "text-gray-700 hover:bg-slate-50 hover:text-gray-900"
-                                        }
-                                    `}
-                                >
-                                    {link.icon}
-                                    <span>{link.label}</span>
-                                </Link>
-                            );
-                        })}
+                    <nav className="flex-1 overflow-y-auto p-4 space-y-1.5">
+                        {NAV_ITEMS.map((item) => (
+                            <NavItem
+                                key={item.path}
+                                item={item}
+                                isActive={checkIsActive(item.path)}
+                                onClick={closeMobileMenu}
+                            />
+                        ))}
                     </nav>
 
-                    {/* QUICK STATS */}
-                    <div className="mt-8 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Stats</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-slate-600">Active Quizzes</span>
-                                <span className="font-bold text-blue-700">12</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-slate-600">Total Attempts</span>
-                                <span className="font-bold text-green-700">245</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-slate-600">Pending Reviews</span>
-                                <span className="font-bold text-orange-700">8</span>
-                            </div>
-                        </div>
-                    </div>
+                    <QuickStatsWidget stats={quickStats} />
                 </aside>
 
-                {/* OVERLAY for mobile */}
-                {open && (
+                {/* Mobile Drawer Overlay */}
+                {isMobileMenuOpen && (
                     <div
-                        className="fixed inset-0 bg-black bg-opacity-30 z-30 lg:hidden"
-                        onClick={() => setOpen(false)}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+                        onClick={closeMobileMenu}
+                        aria-hidden="true"
                     />
                 )}
 
-                {/* CONTENT */}
-                <main className="flex-1 p-6">
+                {/* Dynamic Content Area */}
+                <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
                     {children}
                 </main>
             </div>
-
-            {/* FOOTER */}
-            <footer className="p-4 text-center text-sm text-slate-500 bg-white border-t">
-                © {new Date().getFullYear()} Online Quiz Platform • Trainer Dashboard
-            </footer>
         </div>
     );
 };

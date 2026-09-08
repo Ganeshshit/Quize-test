@@ -6,6 +6,7 @@ import AdminDashboard from "../pages/admin/AdminDashboard";
 
 // TRAINER
 import TrainerDashboard from "../pages/trainer/Dashboard";
+import TrainerProfile from "../pages/trainer/Profile"; // <-- ADDED PROFILE IMPORT
 import CreateQuiz from "../pages/trainer/CreateQuiz";
 import EditQuiz from "../pages/trainer/EditQuiz";
 import CreateQuestion from "../pages/trainer/CreateQuestion";
@@ -29,7 +30,7 @@ import EnrolledQuizList from "../pages/student/EnrolledQuizList";
 import QuizStart from "../pages/student/QuizStart";
 import QuizResult from "../pages/student/QuizResult";
 import QuizStartInstructions from "../pages/student/QuizStartInstructions";
-import StudentResults from "../pages/student/Results"; // ADDED RESULTS IMPORT
+import StudentResults from "../pages/student/Results";
 
 export const routes = [
     // ------------------- AUTH --------------------
@@ -48,6 +49,12 @@ export const routes = [
     {
         path: "/trainer/dashboard",
         element: <TrainerDashboard />,
+        protected: true,
+        roles: ["trainer", "admin"],
+    },
+    {
+        path: "/trainer/profile", // <-- ADDED PROFILE ROUTE
+        element: <TrainerProfile />,
         protected: true,
         roles: ["trainer", "admin"],
     },
@@ -153,7 +160,7 @@ export const routes = [
             },
             {
                 path: "results",
-                element: <StudentResults />, // ADDED RESULTS ROUTE
+                element: <StudentResults />,
                 protected: true,
                 roles: ["student", "admin"],
             },
