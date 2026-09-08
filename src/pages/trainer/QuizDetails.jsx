@@ -1,16 +1,16 @@
+// src/pages/trainer/QuizDetails.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     BookOpen,
     Users,
     Upload,
-    Settings,
     AlertCircle,
     Loader2,
     Library,
     List,
     Award,
-    TrendingUp
+    ArrowLeft
 } from "lucide-react";
 
 import TrainerLayout from "../../components/Layout/TrainerLayout";
@@ -128,41 +128,19 @@ const QuizDetails = () => {
         }
     };
 
-    // Tab Configuration with enhanced styling
+    // Tab Configuration
     const tabs = [
-        {
-            id: "questions",
-            label: "Quiz Questions",
-            icon: List,
-            count: quizQuestions.length,
-            color: "blue"
-        },
-        {
-            id: "bank",
-            label: "Question Bank",
-            icon: Library,
-            count: questionBank.filter(
-                (bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)
-            ).length,
-            color: "purple"
-        },
-        {
-            id: "upload",
-            label: "Bulk Upload",
-            icon: Upload,
-            color: "green"
-        }
+        { id: "questions", label: "Quiz Questions", icon: List, count: quizQuestions.length },
+        { id: "bank", label: "Question Bank", icon: Library, count: questionBank.filter((bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)).length },
+        { id: "upload", label: "Bulk Upload", icon: Upload }
     ];
 
     if (loading) {
         return (
             <TrainerLayout>
-                <div className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-                    <div className="bg-white p-8 rounded-2xl shadow-2xl">
-                        <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6 mx-auto" />
-                        <p className="text-2xl font-bold text-gray-800 text-center">Loading Quiz...</p>
-                        <p className="text-sm text-gray-500 mt-2 text-center">Please wait a moment</p>
-                    </div>
+                <div className="flex flex-col items-center justify-center py-20 min-h-[60vh]">
+                    <Loader2 size={40} className="text-yellow-400 animate-spin mb-4" />
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Quiz Details...</p>
                 </div>
             </TrainerLayout>
         );
@@ -170,186 +148,162 @@ const QuizDetails = () => {
 
     return (
         <TrainerLayout>
-            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-6">
-                <div className="max-w-[1600px] mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto w-full font-sans selection:bg-yellow-200">
 
-                    {/* Breadcrumbs */}
-                    <div className="mb-6">
-                        <Breadcrumbs
-                            items={[
-                                { label: "Quizzes", to: "/trainer/quizzes" },
-                                { label: quiz?.title, to: `/trainer/quizzes/${id}/details` },
-                                { label: "Details" }
-                            ]}
-                        />
+                {/* Breadcrumbs */}
+                <div className="mb-6">
+                    <Breadcrumbs
+                        items={[
+                            { label: "Quizzes", to: "/trainer/quizzes" },
+                            { label: quiz?.title || "Details" }
+                        ]}
+                    />
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-6 flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
+                        <AlertCircle size={20} />
+                        <span className="text-sm font-bold">{error}</span>
                     </div>
+                )}
 
-                    {/* Header Section - Enhanced */}
-                    <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8 mb-8">
-                        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6 mb-6">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-4 shadow-lg">
-                                        <BookOpen className="w-8 h-8 text-white" />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-4xl font-bold text-gray-900 mb-2">{quiz.title}</h1>
-                                        <p className="text-gray-600 text-lg">{quiz.description || "No description provided"}</p>
-                                        <p className="text-gray-600 mb-4">
-                                            {quiz.subject?.name || "No Subject"} • {quiz.durationMinutes} mins • Total Marks: {quiz.totalMarks}
-                                        </p>
-
-                                        <p></p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => navigate(`/trainer/quizzes/${id}/enrollment`)}
-                                className="px-6 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-bold shadow-lg hover:shadow-xl flex items-center gap-3 whitespace-nowrap hover:scale-105 transform"
-                            >
-                                <Users className="w-6 h-6" />
-                                Manage Enrollment
-                            </button>
+                {/* Premium Header */}
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+                    <div className="flex gap-4">
+                        <div className="w-14 h-14 bg-[#0A0A0A] rounded-2xl flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                            <BookOpen size={28} className="text-yellow-400" />
                         </div>
-
-                        {/* Quiz Info Section */}
-                        {/* <QuizHeader quiz={quiz} /> */}
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mb-1">{quiz.title}</h1>
+                            <p className="text-sm font-bold text-gray-500 mb-2">{quiz.description || "No description provided"}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-[10px] font-black uppercase tracking-widest border border-gray-200">
+                                    {quiz.subject?.name || "No Subject"}
+                                </span>
+                                <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-[10px] font-black uppercase tracking-widest border border-gray-200">
+                                    {quiz.durationMinutes} MINS
+                                </span>
+                                <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-md text-[10px] font-black uppercase tracking-widest border border-yellow-200">
+                                    {quiz.totalMarks} MARKS
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Error Message */}
-                    {error && (
-                        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 mb-8 flex items-center gap-4 shadow-md">
-                            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
-                            <p className="text-red-800 font-bold text-lg">{error}</p>
+                    <button
+                        onClick={() => navigate(`/trainer/quizzes/${id}/enrollment`)}
+                        className="flex items-center justify-center gap-2 px-6 py-3.5 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl shadow-md transition-all whitespace-nowrap"
+                    >
+                        <Users size={18} /> Manage Enrollment
+                    </button>
+                </div>
+
+                {/* Custom Tabs Navigation */}
+                <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-xl inline-flex overflow-x-auto w-full sm:w-auto">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${isActive
+                                        ? "bg-white text-gray-900 shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                                    }`}
+                            >
+                                <Icon size={16} />
+                                <span>{tab.label}</span>
+                                {tab.count !== undefined && (
+                                    <span className={`px-2 py-0.5 rounded-md text-[10px] ml-1 ${isActive ? "bg-yellow-400 text-black" : "bg-gray-200 text-gray-700"
+                                        }`}>
+                                        {tab.count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Tab Content */}
+                <div className="bg-white border border-gray-200 rounded-3xl shadow-sm p-6 sm:p-8 min-h-[500px] mb-8">
+                    {activeTab === "questions" && (
+                        <div className="animate-fade-in h-full">
+                            <QuizQuestionList
+                                questions={quizQuestions}
+                                search={searchQuiz}
+                                setSearch={setSearchQuiz}
+                                onRemove={handleRemoveQuestion}
+                                onOpenModal={() => setShowAddModal(true)}
+                            />
                         </div>
                     )}
 
-                    {/* Tabs Navigation - Enhanced */}
-                    <div className="bg-white rounded-t-2xl shadow-xl border-2 border-gray-200 border-b-0">
-                        <div className="flex overflow-x-auto">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.id;
-
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center gap-3 px-8 py-5 font-bold transition-all border-b-4 whitespace-nowrap text-base ${isActive
-                                            ? "text-blue-700 border-blue-600 bg-gradient-to-b from-blue-50 to-white shadow-inner"
-                                            : "text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50"
-                                            }`}
-                                    >
-                                        <Icon className="w-6 h-6" />
-                                        <span>{tab.label}</span>
-                                        {tab.count !== undefined && (
-                                            <span className={`px-3 py-1 rounded-full text-sm font-bold shadow-sm ${isActive
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-200 text-gray-700"
-                                                }`}>
-                                                {tab.count}
-                                            </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
+                    {activeTab === "bank" && (
+                        <div className="animate-fade-in h-full">
+                            <QuestionBank
+                                questionBank={questionBank}
+                                quizQuestions={quizQuestions}
+                                subjects={subjects}
+                                selectedSubject={selectedSubject}
+                                selectedDifficulty={selectedDifficulty}
+                                setSelectedSubject={setSelectedSubject}
+                                setSelectedDifficulty={setSelectedDifficulty}
+                                search={searchBank}
+                                setSearch={setSearchBank}
+                                bankLoading={bankLoading}
+                                onAdd={handleAddQuestion}
+                            />
                         </div>
-                    </div>
+                    )}
 
-                    {/* Tab Content - Full Width with Better Height Management */}
-                    <div className="bg-white rounded-b-2xl shadow-xl border-2 border-gray-200 border-t-0 p-8 min-h-[600px]">
-                        {activeTab === "questions" && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full">
-                                <QuizQuestionList
-                                    questions={quizQuestions}
-                                    search={searchQuiz}
-                                    setSearch={setSearchQuiz}
-                                    onRemove={handleRemoveQuestion}
-                                    onOpenModal={() => setShowAddModal(true)}
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === "bank" && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full">
-                                <QuestionBank
-                                    questionBank={questionBank}
-                                    quizQuestions={quizQuestions}
-                                    subjects={subjects}
-                                    selectedSubject={selectedSubject}
-                                    selectedDifficulty={selectedDifficulty}
-                                    setSelectedSubject={setSelectedSubject}
-                                    setSelectedDifficulty={setSelectedDifficulty}
-                                    search={searchBank}
-                                    setSearch={setSearchBank}
-                                    bankLoading={bankLoading}
-                                    onAdd={handleAddQuestion}
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === "upload" && (
-                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full">
-                                <BulkUpload
-                                    quizId={id}
-                                    reloadQuiz={async () => {
-                                        const quizQsRes = await quizzesAPI.getQuestions(id);
-                                        setQuizQuestions(quizQsRes.data.questions || []);
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Quick Stats Footer - Enhanced */}
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border-2 border-blue-200 p-6 hover:shadow-xl transition-shadow">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-blue-600 rounded-2xl p-4 shadow-md">
-                                    <List className="w-8 h-8 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-blue-700 font-bold uppercase tracking-wide mb-1">Questions in Quiz</p>
-                                    <p className="text-4xl font-bold text-blue-900">{quizQuestions.length}</p>
-                                </div>
-                            </div>
+                    {activeTab === "upload" && (
+                        <div className="animate-fade-in h-full">
+                            <BulkUpload
+                                quizId={id}
+                                reloadQuiz={async () => {
+                                    const quizQsRes = await quizzesAPI.getQuestions(id);
+                                    setQuizQuestions(quizQsRes.data.questions || []);
+                                }}
+                            />
                         </div>
-
-                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg border-2 border-emerald-200 p-6 hover:shadow-xl transition-shadow">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-emerald-600 rounded-2xl p-4 shadow-md">
-                                    <Library className="w-8 h-8 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-emerald-700 font-bold uppercase tracking-wide mb-1">Available Questions</p>
-                                    <p className="text-4xl font-bold text-emerald-900">
-                                        {questionBank.filter(
-                                            (bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)
-                                        ).length}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-lg border-2 border-purple-200 p-6 hover:shadow-xl transition-shadow">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-purple-600 rounded-2xl p-4 shadow-md">
-                                    <Award className="w-8 h-8 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-purple-700 font-bold uppercase tracking-wide mb-1">Total Marks</p>
-                                    <p className="text-4xl font-bold text-purple-900">
-                                        {quizQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                    )}
                 </div>
 
-                {/* Add new question modal */}
+                {/* Quick Stats Footer */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white border border-gray-200 p-6 rounded-3xl shadow-sm hover:border-gray-300 hover:shadow-md transition-all group">
+                        <div className="p-3 bg-gray-50 rounded-xl text-gray-600 group-hover:bg-gray-900 group-hover:text-white transition-colors w-fit mb-4">
+                            <List size={24} />
+                        </div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Questions in Quiz</p>
+                        <p className="text-4xl font-black text-gray-900">{quizQuestions.length}</p>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 p-6 rounded-3xl shadow-sm hover:border-gray-300 hover:shadow-md transition-all group">
+                        <div className="p-3 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors w-fit mb-4">
+                            <Library size={24} />
+                        </div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Available in Bank</p>
+                        <p className="text-4xl font-black text-gray-900">
+                            {questionBank.filter((bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)).length}
+                        </p>
+                    </div>
+
+                    <div className="bg-[#0A0A0A] p-6 rounded-3xl shadow-lg relative overflow-hidden group text-white">
+                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-yellow-400 rounded-full blur-3xl opacity-20 pointer-events-none transition-opacity group-hover:opacity-30"></div>
+                        <div className="p-3 bg-yellow-400 text-black rounded-xl w-fit mb-4 relative z-10">
+                            <Award size={24} />
+                        </div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Total Marks</p>
+                        <p className="text-4xl font-black text-white relative z-10">
+                            {quizQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Modals */}
                 {showAddModal && (
                     <AddQuestionModal
                         quizId={id}

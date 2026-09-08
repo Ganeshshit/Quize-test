@@ -13,7 +13,10 @@ import {
   AlertCircle,
   BookOpen,
   X,
-  ChevronDown
+  ChevronDown,
+  Database,
+  Layers,
+  FileText
 } from "lucide-react";
 
 const QuestionList = () => {
@@ -109,249 +112,243 @@ const QuestionList = () => {
 
   return (
     <TrainerLayout>
-      {/* Header Section */}
-      <div className="mb-8 bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-lg p-8 border border-blue-100">
-        <div className="flex justify-between items-start flex-wrap gap-4">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto w-full font-sans selection:bg-yellow-200">
+
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              Question Bank
-            </h1>
-            <p className="text-slate-600 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-blue-500" />
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Question Bank</h1>
+            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1 flex items-center gap-2">
+              <Database size={16} className="text-yellow-500" />
               Manage all your quiz questions in one place
             </p>
           </div>
 
           <Link
             to="/trainer/questions/create"
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg font-medium"
+            className="px-6 py-3 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 group"
           >
-            <Plus className="w-5 h-5" />
+            <Plus size={18} className="text-yellow-400 group-hover:scale-110 transition-transform" />
             Create Question
           </Link>
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm">
-            <p className="text-slate-600 text-sm font-medium mb-1">Total Questions</p>
-            <p className="text-3xl font-bold text-slate-900">{questions.length}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Questions</p>
+            <p className="text-3xl font-black text-gray-900">{questions.length}</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm">
-            <p className="text-slate-600 text-sm font-medium mb-1">Filtered Results</p>
-            <p className="text-3xl font-bold text-blue-600">{filteredQuestions.length}</p>
+          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Filtered Results</p>
+            <p className="text-3xl font-black text-yellow-500">{filteredQuestions.length}</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm">
-            <p className="text-slate-600 text-sm font-medium mb-1">Subjects</p>
-            <p className="text-3xl font-bold text-purple-600">{uniqueSubjects.length}</p>
+          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Subjects</p>
+            <p className="text-3xl font-black text-gray-900">{uniqueSubjects.length}</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm">
-            <p className="text-slate-600 text-sm font-medium mb-1">Question Types</p>
-            <p className="text-3xl font-bold text-green-600">{uniqueTypes.length}</p>
+          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Question Types</p>
+            <p className="text-3xl font-black text-gray-900">{uniqueTypes.length}</p>
           </div>
         </div>
-      </div>
 
-      {/* Search and Filter Bar */}
-      <div className="mb-6 bg-white rounded-xl shadow-md p-4 border border-slate-200">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search questions by prompt..."
-              className="w-full pl-11 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors bg-slate-50 focus:bg-white"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+        {/* Search and Filter Bar */}
+        <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-200 shadow-sm mb-8">
+          <div className="flex flex-col lg:flex-row gap-4">
 
-          {/* Filter Button */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all font-medium ${showFilters
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white text-slate-700 border-slate-300 hover:border-blue-400"
-              }`}
-          >
-            <Filter className="w-5 h-5" />
-            Filters
-            <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`} />
-          </button>
-
-          {/* Refresh Button */}
-          <button
-            onClick={loadQuestions}
-            disabled={loading}
-            className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 border-2 border-slate-300 transition-all font-medium disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        </div>
-
-        {/* Filter Options */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t-2 border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Type Filter */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Question Type</label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none bg-white transition-colors"
-              >
-                <option value="all">All Types</option>
-                <option value="mcq_single">Single Choice</option>
-                <option value="mcq_multi">Multiple Choice</option>
-                <option value="short_answer">Short Answer</option>
-                <option value="numeric">Numeric</option>
-                <option value="true_false">True/False</option>
-              </select>
+            {/* Search Input */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search questions by prompt..."
+                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-black transition-colors"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
 
-            {/* Difficulty Filter */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Difficulty</label>
-              <select
-                value={selectedDifficulty}
-                onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none bg-white transition-colors"
-              >
-                <option value="all">All Difficulties</option>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
-            </div>
-
-            {/* Subject Filter */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Subject</label>
-              <select
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none bg-white transition-colors"
-              >
-                <option value="all">All Subjects</option>
-                {uniqueSubjects.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* Active Filters */}
-        {hasActiveFilters && (
-          <div className="mt-4 pt-4 border-t-2 border-slate-200 flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-slate-600">Active Filters:</span>
-            {search && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">
-                Search: "{search}"
-                <button onClick={() => setSearch("")} className="hover:bg-blue-200 rounded p-0.5">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-            {selectedType !== "all" && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium">
-                Type: {selectedType}
-                <button onClick={() => setSelectedType("all")} className="hover:bg-purple-200 rounded p-0.5">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-            {selectedDifficulty !== "all" && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium">
-                Difficulty: {selectedDifficulty}
-                <button onClick={() => setSelectedDifficulty("all")} className="hover:bg-yellow-200 rounded p-0.5">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-            {selectedSubject !== "all" && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                Subject: {selectedSubject}
-                <button onClick={() => setSelectedSubject("all")} className="hover:bg-green-200 rounded p-0.5">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
+            {/* Filter Toggle Button */}
             <button
-              onClick={clearFilters}
-              className="ml-auto px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm transition-all border ${showFilters
+                ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
+                : "bg-white text-gray-700 border-gray-200 hover:border-black"
+                }`}
             >
-              Clear All
+              <Filter className={`w-4 h-4 ${showFilters ? "text-yellow-400" : ""}`} />
+              Filters
+              <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`} />
             </button>
-          </div>
-        )}
-      </div>
 
-      {/* Loading / Error / No data */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-            <p className="text-slate-600 text-lg font-medium">Loading questions...</p>
-          </div>
-        </div>
-      ) : error ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <AlertCircle className="w-20 h-20 text-red-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-slate-800 mb-2">Error Loading Questions</h3>
-            <p className="text-red-600 mb-6">{error}</p>
+            {/* Refresh Button */}
             <button
               onClick={loadQuestions}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+              disabled={loading}
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-50 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100 hover:text-black hover:border-gray-300 transition-all font-bold text-sm disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-yellow-500" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
+
+          {/* Expanded Filter Options */}
+          {showFilters && (
+            <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
+
+              <div>
+                <label className="block text-xs font-black text-gray-900 uppercase tracking-widest mb-2">Question Type</label>
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-black transition-colors"
+                >
+                  <option value="all">All Types</option>
+                  <option value="mcq_single">Single Choice</option>
+                  <option value="mcq_multi">Multiple Choice</option>
+                  <option value="short_answer">Short Answer</option>
+                  <option value="numeric">Numeric</option>
+                  <option value="true_false">True/False</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-900 uppercase tracking-widest mb-2">Difficulty</label>
+                <select
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-black transition-colors"
+                >
+                  <option value="all">All Difficulties</option>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-900 uppercase tracking-widest mb-2">Subject</label>
+                <select
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:outline-none focus:border-black transition-colors"
+                >
+                  <option value="all">All Subjects</option>
+                  {uniqueSubjects.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Active Filters Display */}
+          {hasActiveFilters && (
+            <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3 flex-wrap">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Filters:</span>
+
+              {search && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  Search: "{search}"
+                  <button onClick={() => setSearch("")} className="hover:text-red-500 transition-colors ml-1">
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {selectedType !== "all" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  Type: {selectedType.replace('_', ' ')}
+                  <button onClick={() => setSelectedType("all")} className="hover:text-red-500 transition-colors ml-1">
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {selectedDifficulty !== "all" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  Diff: {selectedDifficulty}
+                  <button onClick={() => setSelectedDifficulty("all")} className="hover:text-red-500 transition-colors ml-1">
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {selectedSubject !== "all" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  Sub: {selectedSubject}
+                  <button onClick={() => setSelectedSubject("all")} className="hover:text-red-500 transition-colors ml-1">
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+
+              <button
+                onClick={clearFilters}
+                className="ml-auto px-4 py-1.5 text-xs font-black text-gray-500 hover:text-black uppercase tracking-widest transition-colors"
+              >
+                Clear All
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Main Content Area */}
+        {loading ? (
+          <div className="bg-white rounded-3xl border border-gray-200 p-20 text-center shadow-sm">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading question bank...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-3xl border border-red-200 p-16 text-center shadow-sm max-w-2xl mx-auto">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black text-gray-900 mb-2">Error Loading Questions</h3>
+            <p className="text-sm font-medium text-red-600 mb-6">{error}</p>
+            <button
+              onClick={loadQuestions}
+              className="px-6 py-3 bg-[#0A0A0A] text-white rounded-xl hover:bg-black font-bold text-sm transition-colors"
             >
               Try Again
             </button>
           </div>
-        </div>
-      ) : filteredQuestions.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <BookOpen className="w-20 h-20 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-slate-800 mb-2">No Questions Found</h3>
-            <p className="text-slate-500 mb-6">
+        ) : filteredQuestions.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-gray-200 p-16 text-center shadow-sm max-w-2xl mx-auto">
+            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-black text-gray-900 mb-2">No Questions Found</h3>
+            <p className="text-sm font-medium text-gray-500 mb-8">
               {hasActiveFilters
-                ? "Try adjusting your filters or search criteria"
-                : "Get started by creating your first question"}
+                ? "Try adjusting your filters or search criteria."
+                : "Your question bank is empty. Get started by creating your first question."}
             </p>
             {hasActiveFilters ? (
               <button
                 onClick={clearFilters}
-                className="px-6 py-3 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-medium"
+                className="px-6 py-3 bg-gray-100 text-gray-900 rounded-xl hover:bg-gray-200 font-bold text-sm transition-colors"
               >
                 Clear Filters
               </button>
             ) : (
               <Link
                 to="/trainer/questions/create"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#0A0A0A] text-white rounded-xl hover:bg-black font-bold text-sm transition-colors shadow-md"
               >
-                <Plus className="w-5 h-5" />
+                <Plus size={18} className="text-yellow-400" />
                 Create First Question
               </Link>
             )}
           </div>
-        </div>
-      ) : (
-        <div className="grid gap-6">
-          {filteredQuestions.map((q) => (
-            <QuestionCard
-              key={q._id}
-              question={q}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className="grid gap-4 sm:gap-6">
+            {filteredQuestions.map((q) => (
+              <QuestionCard
+                key={q._id}
+                question={q}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </TrainerLayout>
   );
 };

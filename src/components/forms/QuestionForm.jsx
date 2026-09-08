@@ -1,6 +1,7 @@
 // src/components/forms/QuestionForm.jsx
 import React, { useEffect, useState } from "react";
 import { subjectsAPI } from "../../api/subjects.api";
+import { Plus, Trash2, Save, AlertCircle } from "lucide-react";
 
 const QUESTION_TYPES = [
     { value: "mcq_single", label: "MCQ (Single Correct)" },
@@ -32,49 +33,45 @@ const QuestionForm = ({
         type: "mcq_single",
         prompt: "",
         choices: defaultChoiceIds.map((id) => ({ id, text: "" })),
-        correctSingle: "", // for mcq_single
-        correctMulti: [], // for mcq_multi
-        correctText: "", // for short_answer
-        correctNumeric: "", // for numeric
+        correctSingle: "",
+        correctMulti: [],
+        correctText: "",
+        correctNumeric: "",
         marks: 1,
         difficulty: "easy",
         tagsInput: "",
     });
+
+    // Reusable premium input styling class
+    const inputClasses = "w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all";
+    const labelClasses = "block text-xs font-bold text-gray-700 uppercase tracking-widest mb-2";
 
     // Load subjects
     useEffect(() => {
         const loadSubjects = async () => {
             try {
                 setLoadingSubjects(true);
-
                 const data = await subjectsAPI.getAll();
-
                 let list = [];
 
                 if (Array.isArray(data)) {
-                    // API returns an array directly
                     list = data;
                 } else if (Array.isArray(data?.subjects)) {
-                    // API returns { subjects: [...] }
                     list = data.subjects;
                 } else if (Array.isArray(data?.data)) {
-                    // API returns { data: [...] }
                     list = data.data;
                 } else {
                     console.warn("Unexpected subjects API response:", data);
                 }
-
                 setSubjects(list);
             } catch (error) {
                 console.error(error);
-                setSubjects([]); // ensure subjects is always an array
+                setSubjects([]);
                 setError("Failed to load subjects");
             } finally {
                 setLoadingSubjects(false);
             }
         };
-
-
         loadSubjects();
     }, []);
 
@@ -83,13 +80,7 @@ const QuestionForm = ({
         if (!initialQuestion) return;
 
         const {
-            subject,
-            type,
-            prompt,
-            choices = [],
-            correct,
-            marks,
-            metadata = {},
+            subject, type, prompt, choices = [], correct, marks, metadata = {},
         } = initialQuestion;
 
         const difficulty = metadata.difficulty || "easy";
@@ -108,16 +99,12 @@ const QuestionForm = ({
         } else if (type === "short_answer") {
             correctText = (correct ?? "").toString();
         } else if (type === "numeric") {
-            correctNumeric =
-                typeof correct === "number" || typeof correct === "string"
-                    ? correct.toString()
-                    : "";
+            correctNumeric = (typeof correct === "number" || typeof correct === "string") ? correct.toString() : "";
         }
 
-        const hydratedChoices =
-            choices.length > 0
-                ? choices
-                : defaultChoiceIds.map((id) => ({ id, text: "" }));
+        const hydratedChoices = choices.length > 0
+            ? choices
+            : defaultChoiceIds.map((id) => ({ id, text: "" }));
 
         setForm((prev) => ({
             ...prev,
@@ -157,11 +144,8 @@ const QuestionForm = ({
         const updated = [...form.choices];
         updated.splice(index, 1);
 
-        const updatedCorrectMulti = form.correctMulti.filter(
-            (id) => updated.some((c) => c.id === id) // keep only still-existing ids
-        );
-        const correctSingle =
-            updated.some((c) => c.id === form.correctSingle) ? form.correctSingle : "";
+        const updatedCorrectMulti = form.correctMulti.filter((id) => updated.some((c) => c.id === id));
+        const correctSingle = updated.some((c) => c.id === form.correctSingle) ? form.correctSingle : "";
 
         setForm((prev) => ({
             ...prev,
@@ -186,16 +170,10 @@ const QuestionForm = ({
     };
 
     const buildPayload = () => {
-        const { subject, type, prompt, choices, marks, difficulty, tagsInput } =
-            form;
-
-        const tags = tagsInput
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean);
+        const { subject, type, prompt, choices, marks, difficulty, tagsInput } = form;
+        const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
 
         let correct = null;
-
         if (type === "mcq_single") {
             correct = form.correctSingle || null;
         } else if (type === "mcq_multi") {
@@ -203,27 +181,18 @@ const QuestionForm = ({
         } else if (type === "short_answer") {
             correct = form.correctText || null;
         } else if (type === "numeric") {
-            correct =
-                form.correctNumeric === "" ? null : Number(form.correctNumeric);
+            correct = form.correctNumeric === "" ? null : Number(form.correctNumeric);
         }
 
-        const payload = {
+        return {
             subject,
             type,
             prompt: prompt.trim(),
-            choices:
-                type === "mcq_single" || type === "mcq_multi"
-                    ? choices.filter((c) => c.text.trim() !== "")
-                    : [],
+            choices: (type === "mcq_single" || type === "mcq_multi") ? choices.filter((c) => c.text.trim() !== "") : [],
             correct,
             marks: Number(marks) || 1,
-            metadata: {
-                difficulty,
-                tags,
-            },
+            metadata: { difficulty, tags },
         };
-
-        return payload;
     };
 
     const handleSubmit = async (e) => {
@@ -236,11 +205,7 @@ const QuestionForm = ({
             await onSubmit(payload);
         } catch (err) {
             console.error(err);
-            setError(
-                err?.response?.data?.message ||
-                err?.message ||
-                "Something went wrong while saving the question"
-            );
+            setError(err?.response?.data?.message || err?.message || "Something went wrong while saving the question");
         } finally {
             setSubmitting(false);
         }
@@ -249,19 +214,17 @@ const QuestionForm = ({
     const renderCorrectControls = () => {
         if (form.type === "mcq_single") {
             return (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">
-                        Correct Option (Single)
-                    </label>
+                <div className="p-5 bg-yellow-50/50 border border-yellow-100 rounded-2xl">
+                    <label className={labelClasses}>Correct Option (Single)</label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClasses}
                         value={form.correctSingle}
                         onChange={(e) => handleChange("correctSingle", e.target.value)}
                     >
-                        <option value="">Select correct option</option>
+                        <option value="">-- Select correct option --</option>
                         {form.choices.map((choice) => (
                             <option key={choice.id} value={choice.id}>
-                                {choice.id}. {choice.text || "(empty)"}
+                                Option {choice.id}: {choice.text || "(empty)"}
                             </option>
                         ))}
                     </select>
@@ -271,20 +234,19 @@ const QuestionForm = ({
 
         if (form.type === "mcq_multi") {
             return (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">
-                        Correct Options (Multiple)
-                    </label>
-                    <div className="space-y-1">
+                <div className="p-5 bg-yellow-50/50 border border-yellow-100 rounded-2xl">
+                    <label className={labelClasses}>Correct Options (Multiple)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                         {form.choices.map((choice) => (
-                            <label key={choice.id} className="flex items-center gap-2">
+                            <label key={choice.id} className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-yellow-400 transition-colors">
                                 <input
                                     type="checkbox"
+                                    className="w-5 h-5 accent-yellow-400 cursor-pointer"
                                     checked={form.correctMulti.includes(choice.id)}
                                     onChange={() => toggleMultiCorrect(choice.id)}
                                 />
-                                <span>
-                                    {choice.id}. {choice.text || "(empty)"}
+                                <span className="text-sm font-bold text-gray-800">
+                                    {choice.id}. <span className="font-medium text-gray-600">{choice.text || "(empty)"}</span>
                                 </span>
                             </label>
                         ))}
@@ -295,14 +257,12 @@ const QuestionForm = ({
 
         if (form.type === "short_answer") {
             return (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">
-                        Expected Answer (optional)
-                    </label>
+                <div className="p-5 bg-yellow-50/50 border border-yellow-100 rounded-2xl">
+                    <label className={labelClasses}>Expected Answer (optional)</label>
                     <textarea
-                        className="w-full p-2 border rounded"
-                        rows={3}
-                        placeholder="Reference answer (can be used for semi-auto grading)"
+                        className={inputClasses}
+                        rows={2}
+                        placeholder="Reference answer for grading..."
                         value={form.correctText}
                         onChange={(e) => handleChange("correctText", e.target.value)}
                     />
@@ -312,47 +272,48 @@ const QuestionForm = ({
 
         if (form.type === "numeric") {
             return (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">
-                        Correct Numeric Answer
-                    </label>
+                <div className="p-5 bg-yellow-50/50 border border-yellow-100 rounded-2xl">
+                    <label className={labelClasses}>Correct Numeric Answer</label>
                     <input
                         type="number"
-                        className="w-full p-2 border rounded"
+                        className={inputClasses}
+                        placeholder="e.g. 42"
                         value={form.correctNumeric}
                         onChange={(e) => handleChange("correctNumeric", e.target.value)}
                     />
                 </div>
             );
         }
-
         return null;
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5 max-w-3xl">
+        <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
+
+            {/* Error Alert */}
             {error && (
-                <div className="p-3 rounded bg-red-100 text-red-800 text-sm">
-                    {error}
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
+                    <AlertCircle size={20} />
+                    <span className="text-sm font-bold">{error}</span>
                 </div>
             )}
 
-            {/* Subject & Type */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Subject & Type Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label className="block text-sm font-medium mb-1">
-                        Subject <span className="text-red-500">*</span>
-                    </label>
+                    <label className={labelClasses}>Subject <span className="text-red-500">*</span></label>
                     {loadingSubjects ? (
-                        <div className="text-sm text-gray-500">Loading subjects...</div>
+                        <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 font-medium">
+                            Loading subjects...
+                        </div>
                     ) : (
                         <select
-                            className="w-full p-2 border rounded"
+                            className={inputClasses}
                             value={form.subject}
                             onChange={(e) => handleChange("subject", e.target.value)}
                             required
                         >
-                            <option value="">Select subject</option>
+                            <option value="">-- Select Subject --</option>
                             {subjects.map((subj) => (
                                 <option key={subj._id} value={subj._id}>
                                     {subj.name}
@@ -363,19 +324,15 @@ const QuestionForm = ({
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium mb-1">
-                        Question Type <span className="text-red-500">*</span>
-                    </label>
+                    <label className={labelClasses}>Question Type <span className="text-red-500">*</span></label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClasses}
                         value={form.type}
                         onChange={(e) => handleChange("type", e.target.value)}
                         required
                     >
                         {QUESTION_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>
-                                {t.label}
-                            </option>
+                            <option key={t.value} value={t.value}>{t.label}</option>
                         ))}
                     </select>
                 </div>
@@ -383,13 +340,11 @@ const QuestionForm = ({
 
             {/* Prompt */}
             <div>
-                <label className="block text-sm font-medium mb-1">
-                    Question Text <span className="text-red-500">*</span>
-                </label>
+                <label className={labelClasses}>Question Text <span className="text-red-500">*</span></label>
                 <textarea
-                    className="w-full p-2 border rounded"
+                    className={inputClasses}
                     rows={4}
-                    placeholder="Enter the question prompt"
+                    placeholder="Type the question prompt here..."
                     value={form.prompt}
                     onChange={(e) => handleChange("prompt", e.target.value)}
                     required
@@ -398,28 +353,30 @@ const QuestionForm = ({
 
             {/* Choices (MCQ) */}
             {(form.type === "mcq_single" || form.type === "mcq_multi") && (
-                <div>
-                    <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium">
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="text-xs font-bold text-gray-700 uppercase tracking-widest m-0">
                             Options <span className="text-red-500">*</span>
                         </label>
                         <button
                             type="button"
-                            className="text-sm text-blue-600 hover:underline"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors"
                             onClick={addChoice}
                         >
-                            + Add Option
+                            <Plus size={14} /> Add Option
                         </button>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {form.choices.map((choice, index) => (
-                            <div key={choice.id} className="flex gap-2 items-center">
-                                <span className="w-6 text-sm font-semibold">{choice.id}.</span>
+                            <div key={choice.id} className="flex gap-3 items-center">
+                                <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-white border border-gray-200 rounded-xl font-black text-gray-600 shadow-sm">
+                                    {choice.id}
+                                </div>
                                 <input
                                     type="text"
-                                    className="flex-1 p-2 border rounded"
-                                    placeholder={`Option ${choice.id}`}
+                                    className={inputClasses}
+                                    placeholder={`Enter text for option ${choice.id}`}
                                     value={choice.text}
                                     onChange={(e) => handleChoiceChange(index, e.target.value)}
                                     required
@@ -427,10 +384,11 @@ const QuestionForm = ({
                                 {form.choices.length > 2 && (
                                     <button
                                         type="button"
-                                        className="text-xs px-2 py-1 border rounded text-red-600"
+                                        className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                                         onClick={() => removeChoice(index)}
+                                        title="Remove option"
                                     >
-                                        Remove
+                                        <Trash2 size={18} />
                                     </button>
                                 )}
                             </div>
@@ -442,16 +400,14 @@ const QuestionForm = ({
             {/* Correct Answer Controls */}
             {renderCorrectControls()}
 
-            {/* Marks, difficulty, tags */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Marks, Difficulty, Tags Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
                 <div>
-                    <label className="block text-sm font-medium mb-1">
-                        Marks <span className="text-red-500">*</span>
-                    </label>
+                    <label className={labelClasses}>Marks <span className="text-red-500">*</span></label>
                     <input
                         type="number"
                         min={0}
-                        className="w-full p-2 border rounded"
+                        className={inputClasses}
                         value={form.marks}
                         onChange={(e) => handleChange("marks", e.target.value)}
                         required
@@ -459,48 +415,42 @@ const QuestionForm = ({
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium mb-1">Difficulty</label>
+                    <label className={labelClasses}>Difficulty</label>
                     <select
-                        className="w-full p-2 border rounded"
+                        className={inputClasses}
                         value={form.difficulty}
                         onChange={(e) => handleChange("difficulty", e.target.value)}
                     >
                         {DIFFICULTIES.map((d) => (
-                            <option key={d.value} value={d.value}>
-                                {d.label}
-                            </option>
+                            <option key={d.value} value={d.value}>{d.label}</option>
                         ))}
                     </select>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium mb-1">
-                        Tags (comma-separated)
-                    </label>
+                    <label className={labelClasses}>Tags</label>
                     <input
                         type="text"
-                        className="w-full p-2 border rounded"
-                        placeholder="e.g. loops, array, basics"
+                        className={inputClasses}
+                        placeholder="comma, separated"
                         value={form.tagsInput}
                         onChange={(e) => handleChange("tagsInput", e.target.value)}
                     />
                 </div>
             </div>
 
-            {/* Submit */}
-            <div className="flex justify-end gap-3">
+            {/* Submit Button */}
+            <div className="pt-6 flex justify-end">
                 <button
                     type="submit"
                     disabled={submitting}
-                    className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl shadow-md transition-all disabled:opacity-50"
                 >
-                    {submitting
-                        ? mode === "create"
-                            ? "Creating..."
-                            : "Updating..."
-                        : mode === "create"
-                            ? "Create Question"
-                            : "Update Question"}
+                    {submitting ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                        <><Save size={18} /> {mode === "create" ? "Create Question" : "Save Changes"}</>
+                    )}
                 </button>
             </div>
         </form>
