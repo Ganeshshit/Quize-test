@@ -768,7 +768,7 @@ const CreateQuiz = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="space-y-3 sticky bottom-6">
+            <div className="space-y-3 mt-6 pt-4 border-t border-gray-100">
               <button
                 onClick={handleSubmit}
                 disabled={loading || getValidationErrors().length > 0}
