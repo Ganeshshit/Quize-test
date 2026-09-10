@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Settings, Clock, Calendar, CheckCircle2,
   AlertTriangle, Save, Play, Shuffle,
-  ListChecks, BookOpen, Layers, Info
+  ListChecks, BookOpen, Layers, Info, ShieldAlert
 } from "lucide-react";
 
 const CreateQuiz = () => {
@@ -658,6 +658,91 @@ const CreateQuiz = () => {
                   onChange={(e) => update("instructions", e.target.value)}
                   placeholder="Enter specific guidelines, rules, or prerequisites for the students before they start..."
                 />
+              </div>
+            </div>
+
+            {/* Security & Anti-Cheat Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+              <div className="flex items-center justify-between mb-2 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert size={20} className="text-yellow-500" />
+                  <h2 className="text-lg font-black text-gray-900">Security & Anti-Cheat</h2>
+                </div>
+                <span className="px-2.5 py-1 bg-yellow-50 text-yellow-700 text-[10px] font-black uppercase tracking-widest rounded-lg border border-yellow-200">
+                  Proctoring
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Browser Lockdown Options */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 text-gray-500">Browser Environment</h3>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 accent-black cursor-pointer" 
+                      checked={formData.antiCheatSettings.enableFullScreen} 
+                      onChange={(e) => updateDeep("antiCheatSettings", "enableFullScreen", e.target.checked)} 
+                    />
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Force Fullscreen Mode</span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 accent-black cursor-pointer" 
+                      checked={formData.antiCheatSettings.disableCopyPaste} 
+                      onChange={(e) => updateDeep("antiCheatSettings", "disableCopyPaste", e.target.checked)} 
+                    />
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Disable Copy/Paste & Right-Click</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 accent-black cursor-pointer" 
+                      checked={formData.antiCheatSettings.trackIPAddress} 
+                      onChange={(e) => updateDeep("antiCheatSettings", "trackIPAddress", e.target.checked)} 
+                    />
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-black transition-colors">Track IP Address (Block Multi-Logins)</span>
+                  </label>
+                </div>
+
+                {/* Tab Switch Detection */}
+                <div className="space-y-4 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 accent-black cursor-pointer mt-1" 
+                      checked={formData.antiCheatSettings.enableTabSwitchDetection} 
+                      onChange={(e) => updateDeep("antiCheatSettings", "enableTabSwitchDetection", e.target.checked)} 
+                    />
+                    <div>
+                      <span className="text-sm font-bold text-gray-900 block">Tab Switch Detection</span>
+                      <span className="text-xs text-gray-500 font-medium">Auto-submits if students leave the quiz tab.</span>
+                    </div>
+                  </label>
+
+                  {formData.antiCheatSettings.enableTabSwitchDetection && (
+                    <div className="pl-7 pt-2 animate-in fade-in duration-200">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                        Max Tab Switches Allowed
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        className={`${inputClass} py-2`}
+                        value={formData.antiCheatSettings.maxTabSwitches}
+                        onChange={(e) => updateDeep("antiCheatSettings", "maxTabSwitches", Math.max(0, Number(e.target.value) || 0))}
+                      />
+                      <p className="text-[10px] font-bold text-gray-400 mt-1">Set to 0 for zero-tolerance (instant submit).</p>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
 

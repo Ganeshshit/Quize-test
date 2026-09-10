@@ -1,5 +1,7 @@
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 // ADMIN
 import AdminDashboard from "../pages/admin/AdminDashboard";
@@ -42,6 +44,16 @@ export const routes = [
     {
         path: "/register",
         element: <Register />,
+        protected: false,
+    },
+    {
+        path: "/forgot-password",
+        element: <ForgotPassword />,
+        protected: false,
+    },
+    {
+        path: "/reset-password/:token",
+        element: <ResetPassword />,
         protected: false,
     },
 
