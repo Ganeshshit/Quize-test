@@ -94,7 +94,25 @@ const QuizStartInstructions = () => {
 
         try {
             setStarting(true);
-            const res = await quizzesAPI.start(quizId);
+
+            // 1️⃣ Generate a unique Session ID for this browser tab
+            let sessionId = sessionStorage.getItem(`quiz_session_${quizId}`);
+            if (!sessionId) {
+                sessionId = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}`;
+                sessionStorage.setItem(`quiz_session_${quizId}`, sessionId);
+            }
+
+            // 2️⃣ Calculate the attempt index (e.g., if they have 0 attempts, this is attempt 1)
+            const attemptIndex = (quiz.userAttemptCount || 0) + 1;
+
+            // 3️⃣ Pass the required data to the API
+            const payload = {
+                sessionId: sessionId,
+                attemptIndex: attemptIndex
+            };
+
+            // Pass the payload as the second argument
+            const res = await quizzesAPI.start(quizId, payload);
 
             if (res.success && res.data) {
                 toast.success("Assessment started!");
@@ -104,8 +122,16 @@ const QuizStartInstructions = () => {
             }
         } catch (error) {
             console.error("Start quiz error:", error);
+
+            // Format the error nicely if the backend sends an array of details
             const errorMsg = error?.response?.data?.error || "Failed to start assessment";
-            toast.error(errorMsg);
+            const details = error?.response?.data?.details;
+
+            if (details && Array.isArray(details)) {
+                toast.error(`${errorMsg}: ${details.join(", ")}`);
+            } else {
+                toast.error(errorMsg);
+            }
         } finally {
             setStarting(false);
         }

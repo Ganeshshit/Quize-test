@@ -84,7 +84,24 @@ const QuizStart = () => {
       }
 
       // 3️⃣ Now start the quiz attempt (API call)
-      const res = await quizzesAPI.start(id);
+      
+      // Generate a unique Session ID for this browser tab
+      let sessionId = sessionStorage.getItem(`quiz_session_${id}`);
+      if (!sessionId) {
+          sessionId = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}`;
+          sessionStorage.setItem(`quiz_session_${id}`, sessionId);
+      }
+
+      // Calculate the attempt index
+      const attemptIndex = (quiz.userAttemptCount || 0) + 1;
+
+      // Pass the payload
+      const payload = {
+          sessionId: sessionId,
+          attemptIndex: attemptIndex
+      };
+
+      const res = await quizzesAPI.start(id, payload);
 
       if (res.success) {
         // Check if we're resuming an existing attempt

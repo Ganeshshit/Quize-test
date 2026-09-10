@@ -85,7 +85,43 @@ const QuizLockdown = ({
         };
     }, [disableCopyPaste, handleViolation]);
 
-    // 3. Fullscreen Management
+    // 3. Keyboard Shortcut Prevention (DevTools, Print, Refresh)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Block F12 (DevTools)
+            if (e.key === "F12") {
+                e.preventDefault();
+                handleViolation("keyboard_shortcut", "Developer tools are disabled.");
+            }
+
+            // Block Ctrl/Cmd + Shift + I/J/C (DevTools)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) {
+                e.preventDefault();
+                handleViolation("keyboard_shortcut", "Developer tools are disabled.");
+            }
+
+            // Block Ctrl/Cmd + U (View Source)
+            if ((e.ctrlKey || e.metaKey) && e.key.toUpperCase() === "U") {
+                e.preventDefault();
+                handleViolation("keyboard_shortcut", "Viewing page source is disabled.");
+            }
+
+            // Block Ctrl/Cmd + P (Print/Save to PDF)
+            if ((e.ctrlKey || e.metaKey) && e.key.toUpperCase() === "P") {
+                e.preventDefault();
+                handleViolation("keyboard_shortcut", "Printing is disabled during the quiz.");
+            }
+        };
+
+        // Add event listener to the capture phase so it triggers before other handlers
+        document.addEventListener("keydown", handleKeyDown, true);
+
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown, true);
+        };
+    }, [handleViolation]);
+
+    // 4. Fullscreen Management
     const requestFullscreen = () => {
         const elem = document.documentElement;
         if (elem.requestFullscreen) {
