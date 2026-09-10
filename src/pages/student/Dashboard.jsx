@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { storageService } from '../../services/storage.service';
 
 // --- Helper Functions ---
 const getGreeting = () => {
@@ -62,7 +63,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+        const token = storageService.getAccessToken();
 
         if (!token) {
           throw new Error('Authentication required');
@@ -111,13 +112,20 @@ const Dashboard = () => {
   }, [logout, navigate]);
 
   const { loading, quizzes, stats } = dashboardState;
-
   const { firstName, currentDate, greeting } = useMemo(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const displayName = user?.name || storedUser?.name || 'Student';
+    const displayName =
+      user?.name ||
+      user?.fullName ||
+      user?.username ||
+      '';
+
     return {
-      firstName: displayName.trim().split(' ')[0],
-      currentDate: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date()),
+      firstName: displayName.trim().split(' ')[0] || 'Student',
+      currentDate: new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(new Date()),
       greeting: getGreeting()
     };
   }, [user]);

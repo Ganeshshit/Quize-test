@@ -1,122 +1,187 @@
 import React, { useState, useEffect } from "react";
-import { User, Mail, Lock, Shield, Save, CheckCircle, AlertCircle } from "lucide-react";
+import {
+    User,
+    Mail,
+    Lock,
+    Shield,
+    Save,
+    CheckCircle,
+    AlertCircle,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
+import { storageService } from "../../services/storage.service";
 
 // Utility for Avatar Initials
-const getInitials = (name = '') => {
-    if (!name.trim()) return 'ST';
+const getInitials = (name = "") => {
+    if (!name.trim()) return "ST";
+
     const parts = name.trim().split(/\s+/);
+
     return parts.length >= 2
         ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
         : parts[0].substring(0, 2).toUpperCase();
 };
 
 const Profile = () => {
-    // 1. Pull dynamic user data from authentication state
-    const { user, login } = useAuth(); // Assuming 'login' or an 'updateUser' function updates local auth state
+    // Get authenticated user and centralized profile update function
+    const { user, updateProfile } = useAuth();
 
-    // 2. Separate states for Profile Info and Password updates
-    const [profileForm, setProfileForm] = useState({ name: "", email: "" });
-    const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    // Profile information
+    const [profileForm, setProfileForm] = useState({
+        name: "",
+        email: "",
+    });
+
+    // Password information
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+    });
 
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-    // 3. Populate form with actual user data on load
+    // Populate profile form from authenticated user
     useEffect(() => {
         if (user) {
             setProfileForm({
-                name: user.name || user.username || "",
-                email: user.email || ""
+                name: user.name || user.fullName || user.username || "",
+                email: user.email || "",
             });
         }
     }, [user]);
 
-    // --- Handlers ---
+    // --- Profile Input Handler ---
     const handleProfileChange = (e) => {
-        setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
+        setProfileForm({
+            ...profileForm,
+            [e.target.name]: e.target.value,
+        });
     };
 
+    // --- Password Input Handler ---
     const handlePasswordChange = (e) => {
-        setPasswordForm({ ...passwordForm, [e.target.name]: e.target.value });
+        setPasswordForm({
+            ...passwordForm,
+            [e.target.name]: e.target.value,
+        });
     };
 
-    // --- Profile Update API Call ---
+    // --- Profile Update ---
     const handleProfileSubmit = async (e) => {
         e.preventDefault();
+
+        const name = profileForm.name.trim();
+
+        if (!name) {
+            toast.error("Name cannot be empty.");
+            return;
+        }
+
         setIsSavingProfile(true);
 
         try {
-            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-            const response = await fetch(`${baseUrl}/users/profile`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ name: profileForm.name })
+            const result = await updateProfile({
+                name,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) throw new Error(data.message || "Failed to update profile");
+            if (!result.success) {
+                throw new Error(
+                    result.error || "Failed to update profile"
+                );
+            }
 
             toast.success("Profile updated successfully!");
-
-            // Optional: If your backend returns the updated user, refresh the local auth state
-            // login(data.user, token); 
-
         } catch (error) {
             console.error("Profile update error:", error);
-            toast.error(error.message || "Something went wrong.");
+            toast.error(
+                error.message || "Something went wrong."
+            );
         } finally {
             setIsSavingProfile(false);
         }
     };
 
-    // --- Password Update API Call ---
+    // --- Password Update ---
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
 
-        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-            return toast.error("New passwords do not match!");
+        if (
+            passwordForm.newPassword !==
+            passwordForm.confirmPassword
+        ) {
+            toast.error("New passwords do not match!");
+            return;
         }
+
         if (passwordForm.newPassword.length < 6) {
-            return toast.error("Password must be at least 6 characters long.");
+            toast.error(
+                "Password must be at least 6 characters long."
+            );
+            return;
         }
 
         setIsSavingPassword(true);
 
         try {
-            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            /*
+             * Password update endpoint is kept as the existing
+             * backend contract for this page.
+             *
+             * Token retrieval should be centralized rather than
+             * reading localStorage directly.
+             */
+            const token = storageService.getAccessToken();
 
-            const response = await fetch(`${baseUrl}/users/change-password`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    currentPassword: passwordForm.currentPassword,
-                    newPassword: passwordForm.newPassword
-                })
-            });
+            if (!token) {
+                throw new Error("Authentication required.");
+            }
+
+            const baseUrl =
+                import.meta.env.VITE_API_URL ||
+                "http://localhost:5000/api";
+
+            const response = await fetch(
+                `${baseUrl}/users/change-password`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        currentPassword:
+                            passwordForm.currentPassword,
+                        newPassword:
+                            passwordForm.newPassword,
+                    }),
+                }
+            );
 
             const data = await response.json();
 
-            if (!response.ok) throw new Error(data.message || "Failed to change password");
+            if (!response.ok) {
+                throw new Error(
+                    data.message ||
+                        "Failed to change password"
+                );
+            }
 
             toast.success("Password changed successfully!");
-            // Clear password form on success
-            setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
+            setPasswordForm({
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
         } catch (error) {
             console.error("Password update error:", error);
-            toast.error(error.message || "Failed to update password.");
+            toast.error(
+                error.message ||
+                    "Failed to update password."
+            );
         } finally {
             setIsSavingPassword(false);
         }
@@ -129,24 +194,34 @@ const Profile = () => {
             {/* Header */}
             <header className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                 <div>
-                    <h1 className="text-2xl font-black tracking-tight text-gray-900">Profile Settings</h1>
+                    <h1 className="text-2xl font-black tracking-tight text-gray-900">
+                        Profile Settings
+                    </h1>
+
                     <p className="text-sm text-gray-500 font-medium mt-1">
-                        Manage your account details and security preferences.
+                        Manage your account details and security
+                        preferences.
                     </p>
                 </div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
                 {/* Left Column: Avatar & Summary */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col items-center text-center">
                         <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-yellow-400 to-yellow-300 text-gray-950 flex items-center justify-center text-4xl font-black shadow-lg shadow-yellow-400/20 mb-4 border-4 border-white">
                             {initials}
                         </div>
-                        <h2 className="text-xl font-bold text-gray-900">{profileForm.name}</h2>
+
+                        <h2 className="text-xl font-bold text-gray-900">
+                            {profileForm.name || "User"}
+                        </h2>
+
                         <p className="text-sm font-medium text-gray-500 flex items-center justify-center gap-1.5 mt-1">
-                            <Shield size={14} className="text-emerald-500" />
+                            <Shield
+                                size={14}
+                                className="text-emerald-500"
+                            />
                             Student Account
                         </p>
                     </div>
@@ -154,40 +229,61 @@ const Profile = () => {
 
                 {/* Right Column: Forms */}
                 <div className="lg:col-span-2 space-y-8">
-
                     {/* Personal Information Form */}
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="px-6 py-5 border-b border-gray-50 bg-gray-50/50">
                             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                <User size={16} className="text-gray-400" />
+                                <User
+                                    size={16}
+                                    className="text-gray-400"
+                                />
                                 Personal Information
                             </h3>
                         </div>
 
-                        <form onSubmit={handleProfileSubmit} className="p-6 space-y-5">
+                        <form
+                            onSubmit={handleProfileSubmit}
+                            className="p-6 space-y-5"
+                        >
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1.5">Full Name</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                                    Full Name
+                                </label>
+
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                        <User size={18} className="text-gray-400" />
+                                        <User
+                                            size={18}
+                                            className="text-gray-400"
+                                        />
                                     </div>
+
                                     <input
                                         type="text"
                                         name="name"
                                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
                                         value={profileForm.name}
-                                        onChange={handleProfileChange}
+                                        onChange={
+                                            handleProfileChange
+                                        }
                                         required
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1.5">Email Address</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                                    Email Address
+                                </label>
+
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                        <Mail size={18} className="text-gray-400" />
+                                        <Mail
+                                            size={18}
+                                            className="text-gray-400"
+                                        />
                                     </div>
+
                                     <input
                                         type="email"
                                         name="email"
@@ -196,8 +292,11 @@ const Profile = () => {
                                         disabled
                                     />
                                 </div>
+
                                 <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5 font-medium">
-                                    <AlertCircle size={14} /> Email addresses cannot be changed after registration.
+                                    <AlertCircle size={14} />
+                                    Email addresses cannot be changed
+                                    after registration.
                                 </p>
                             </div>
 
@@ -212,7 +311,10 @@ const Profile = () => {
                                     ) : (
                                         <Save size={16} />
                                     )}
-                                    {isSavingProfile ? "Saving..." : "Save Changes"}
+
+                                    {isSavingProfile
+                                        ? "Saving..."
+                                        : "Save Changes"}
                                 </button>
                             </div>
                         </form>
@@ -222,48 +324,76 @@ const Profile = () => {
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="px-6 py-5 border-b border-gray-50 bg-gray-50/50">
                             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                <Lock size={16} className="text-gray-400" />
+                                <Lock
+                                    size={16}
+                                    className="text-gray-400"
+                                />
                                 Security Settings
                             </h3>
                         </div>
 
-                        <form onSubmit={handlePasswordSubmit} className="p-6 space-y-5">
+                        <form
+                            onSubmit={handlePasswordSubmit}
+                            className="p-6 space-y-5"
+                        >
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1.5">Current Password</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                                    Current Password
+                                </label>
+
                                 <input
                                     type="password"
                                     name="currentPassword"
                                     placeholder="Enter your current password"
                                     className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
-                                    value={passwordForm.currentPassword}
-                                    onChange={handlePasswordChange}
+                                    value={
+                                        passwordForm.currentPassword
+                                    }
+                                    onChange={
+                                        handlePasswordChange
+                                    }
                                     required
                                 />
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">New Password</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                                        New Password
+                                    </label>
+
                                     <input
                                         type="password"
                                         name="newPassword"
                                         placeholder="Min. 6 characters"
                                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
-                                        value={passwordForm.newPassword}
-                                        onChange={handlePasswordChange}
+                                        value={
+                                            passwordForm.newPassword
+                                        }
+                                        onChange={
+                                            handlePasswordChange
+                                        }
                                         required
                                         minLength={6}
                                     />
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Confirm New Password</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                                        Confirm New Password
+                                    </label>
+
                                     <input
                                         type="password"
                                         name="confirmPassword"
                                         placeholder="Repeat new password"
                                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
-                                        value={passwordForm.confirmPassword}
-                                        onChange={handlePasswordChange}
+                                        value={
+                                            passwordForm.confirmPassword
+                                        }
+                                        onChange={
+                                            handlePasswordChange
+                                        }
                                         required
                                         minLength={6}
                                     />
@@ -273,7 +403,10 @@ const Profile = () => {
                             <div className="pt-2 flex justify-end">
                                 <button
                                     type="submit"
-                                    disabled={isSavingPassword || !passwordForm.newPassword}
+                                    disabled={
+                                        isSavingPassword ||
+                                        !passwordForm.newPassword
+                                    }
                                     className="bg-white border-2 border-gray-200 text-gray-900 px-6 py-2.5 rounded-xl font-bold text-sm hover:border-black hover:bg-black hover:text-white transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
                                 >
                                     {isSavingPassword ? (
@@ -281,12 +414,14 @@ const Profile = () => {
                                     ) : (
                                         <CheckCircle size={16} />
                                     )}
-                                    {isSavingPassword ? "Updating..." : "Update Password"}
+
+                                    {isSavingPassword
+                                        ? "Updating..."
+                                        : "Update Password"}
                                 </button>
                             </div>
                         </form>
                     </div>
-
                 </div>
             </div>
         </div>
