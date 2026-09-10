@@ -1,4 +1,3 @@
-// src/components/trainer/quiz/QuestionBank.jsx
 import React, { useState } from "react";
 import {
     Search,
@@ -89,8 +88,8 @@ const QuestionBank = ({
                         onClick={() => setShowFilters(!showFilters)}
                         disabled={bankLoading}
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${showFilters || selectedDifficulty !== "all" || selectedSubject !== "all"
-                                ? "bg-gray-900 text-white shadow-md"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            ? "bg-gray-900 text-white shadow-md"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                     >
                         <Filter size={16} /> Filters

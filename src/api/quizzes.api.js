@@ -136,8 +136,8 @@ export const quizzesAPI = {
     },
 
     // Student → Start quiz (creates attempt)
-    start: async (quizId) => {
-        const response = await axiosInstance.post(`/quizzes/${quizId}/start`);
+    start: async (quizId, payload) => {
+        const response = await axiosInstance.post(`/quizzes/${quizId}/start`, payload);
         return response.data;
     },
 
@@ -173,7 +173,7 @@ export const quizzesAPI = {
         );
         return response.data;
     },
-  
+
     getEnrollments: async (quizId, params) => {
         const response = await axiosInstance.get(`/quizzes/${quizId}/enrollments`, {
             params
@@ -196,6 +196,6 @@ export const quizzesAPI = {
         const response = await axiosInstance.get(`/quizzes/${quizId}/statistics`);
         return response.data;
     },
-   
-   
+
+
 };
