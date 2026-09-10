@@ -2,134 +2,206 @@
 
 class JWTService {
     /**
-     * Decode JWT token without verification
+     * Decode JWT payload.
+     * NOTE: This decodes the payload only.
+     * Cryptographic signature verification must be handled by the backend/auth server.
      */
     decode(token) {
         try {
-            const parts = token.split('.');
-            if (parts.length !== 3) {
-                throw new Error('Invalid token format');
+            if (!token || typeof token !== 'string') {
+                return null;
             }
 
-            const payload = parts[1];
-            const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+            const parts = token.split('.');
+
+            if (parts.length !== 3) {
+                return null;
+            }
+
+            // JWT uses base64url encoding.
+            const base64 = parts[1]
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            // Restore missing base64 padding.
+            const padded = base64.padEnd(
+                base64.length + ((4 - (base64.length % 4)) % 4),
+                '='
+            );
+
+            const decoded = JSON.parse(atob(padded));
+
+            if (!decoded || typeof decoded !== 'object') {
+                return null;
+            }
 
             return decoded;
-        } catch (error) {
-            console.error('Error decoding token:', error);
+        } catch {
+            // Never log token contents or sensitive authentication data.
             return null;
         }
     }
 
     /**
-     * Check if token is expired
+     * Check whether token is expired or invalid.
      */
     isTokenExpired(token) {
-        try {
-            const decoded = this.decode(token);
-            if (!decoded || !decoded.exp) {
-                return true;
-            }
+        const decoded = this.decode(token);
 
-            const currentTime = Math.floor(Date.now() / 1000);
-
-            // Add 30 second buffer to prevent edge cases
-            return decoded.exp < (currentTime + 30);
-        } catch (error) {
-            console.error('Error checking token expiration:', error);
+        if (!decoded || typeof decoded.exp !== 'number') {
             return true;
         }
+
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        // 30-second safety buffer.
+        return decoded.exp <= currentTime + 30;
     }
 
     /**
-     * Get token expiration time
+     * Get token expiration date.
      */
     getTokenExpiration(token) {
         const decoded = this.decode(token);
-        return decoded?.exp ? new Date(decoded.exp * 1000) : null;
+
+        if (!decoded || typeof decoded.exp !== 'number') {
+            return null;
+        }
+
+        return new Date(decoded.exp * 1000);
     }
 
     /**
-     * Get time until token expires (in seconds)
+     * Get remaining token lifetime in seconds.
      */
     getTimeUntilExpiration(token) {
-        try {
-            const decoded = this.decode(token);
-            if (!decoded || !decoded.exp) {
-                return 0;
-            }
+        const decoded = this.decode(token);
 
-            const currentTime = Math.floor(Date.now() / 1000);
-            return Math.max(0, decoded.exp - currentTime);
-        } catch (error) {
+        if (!decoded || typeof decoded.exp !== 'number') {
             return 0;
         }
+
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        return Math.max(0, decoded.exp - currentTime);
     }
 
     /**
-     * Get user ID from token
+     * Get user ID from JWT.
      */
     getUserId(token) {
         const decoded = this.decode(token);
-        return decoded?.userId || null;
+
+        if (!decoded) {
+            return null;
+        }
+
+        return (
+            decoded.userId ??
+            decoded.user_id ??
+            decoded.id ??
+            decoded.sub ??
+            null
+        );
     }
 
     /**
-     * Get user role from token
+     * Get user role from JWT.
      */
     getUserRole(token) {
         const decoded = this.decode(token);
-        return decoded?.role || null;
+
+        if (!decoded) {
+            return null;
+        }
+
+        return (
+            decoded.role ??
+            decoded.roles?.[0] ??
+            null
+        );
     }
 
     /**
-     * Validate token structure and basic claims
+     * Validate JWT structure and required authentication claims.
+     *
+     * This performs client-side structural/claim/expiration validation.
+     * It does NOT cryptographically verify the JWT signature.
      */
     validateToken(token) {
-        try {
-            const decoded = this.decode(token);
+        const decoded = this.decode(token);
 
-            if (!decoded) {
-                return { valid: false, reason: 'Invalid token format' };
-            }
-
-            // Check required claims
-            if (!decoded.userId || !decoded.role) {
-                return { valid: false, reason: 'Missing required claims' };
-            }
-
-            // Check expiration
-            if (this.isTokenExpired(token)) {
-                return { valid: false, reason: 'Token expired' };
-            }
-
-            // Check issuer and audience if present
-            if (decoded.iss && decoded.iss !== 'quiz-app') {
-                return { valid: false, reason: 'Invalid issuer' };
-            }
-
-            if (decoded.aud && decoded.aud !== 'quiz-app-users') {
-                return { valid: false, reason: 'Invalid audience' };
-            }
-
-            return { valid: true };
-        } catch (error) {
-            return { valid: false, reason: error.message };
+        if (!decoded) {
+            return {
+                valid: false,
+                reason: 'Invalid token format'
+            };
         }
+
+        if (this.isTokenExpired(token)) {
+            return {
+                valid: false,
+                reason: 'Token expired'
+            };
+        }
+
+        const userId = this.getUserId(token);
+        const role = this.getUserRole(token);
+
+        if (!userId || !role) {
+            return {
+                valid: false,
+                reason: 'Missing required claims'
+            };
+        }
+
+        // Validate issuer when supplied by the backend.
+        if (decoded.iss && decoded.iss !== 'quiz-app') {
+            return {
+                valid: false,
+                reason: 'Invalid issuer'
+            };
+        }
+
+        // Validate audience when supplied by the backend.
+        if (decoded.aud && decoded.aud !== 'quiz-app-users') {
+            return {
+                valid: false,
+                reason: 'Invalid audience'
+            };
+        }
+
+        return {
+            valid: true
+        };
     }
 
     /**
-     * Extract all user info from token
+     * Extract safe user information from JWT.
+     *
+     * Only non-sensitive identity/authorization claims are exposed.
      */
     getUserInfo(token) {
+        const validation = this.validateToken(token);
+
+        if (!validation.valid) {
+            return null;
+        }
+
         const decoded = this.decode(token);
-        if (!decoded) return null;
 
         return {
-            userId: decoded.userId,
-            role: decoded.role,
+            userId: this.getUserId(token),
+            email: decoded.email ?? decoded.emailAddress ?? null,
+            name:
+                decoded.name ??
+                decoded.fullName ??
+                decoded.username ??
+                null,
+            role: this.getUserRole(token),
+            permissions: decoded.permissions ?? [],
             exp: decoded.exp,
-            iat: decoded.iat,
+            iat: decoded.iat ?? null
         };
     }
 }
