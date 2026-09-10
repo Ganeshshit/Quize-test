@@ -20,6 +20,12 @@ class AuthService {
             }
             if (response.user) {
                 storageService.setUserData(response.user);
+            } else if (response.accessToken) {
+                const tokenUser = jwtService.getUserInfo(response.accessToken);
+
+                if (tokenUser) {
+                    storageService.setUserData(tokenUser);
+                }
             }
 
             return {
@@ -52,6 +58,12 @@ class AuthService {
             }
             if (response.user) {
                 storageService.setUserData(response.user);
+            } else if (response.accessToken) {
+                const tokenUser = jwtService.getUserInfo(response.accessToken);
+
+                if (tokenUser) {
+                    storageService.setUserData(tokenUser);
+                }
             }
 
             return {
@@ -187,10 +199,25 @@ class AuthService {
     }
 
     /**
-     * Get current user data
-     */
+ * Get current user data from the authenticated access token.
+ *
+ * The JWT is decoded and validated before user information is returned.
+ * The backend remains responsible for cryptographic signature verification.
+ */
     getCurrentUser() {
-        return storageService.getUserData();
+        const token = storageService.getAccessToken();
+
+        if (!token) {
+            return null;
+        }
+
+        const userInfo = jwtService.getUserInfo(token);
+
+        if (!userInfo) {
+            return null;
+        }
+
+        return userInfo;
     }
 
     /**
