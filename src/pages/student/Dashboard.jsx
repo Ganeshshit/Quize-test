@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { quizzesAPI } from '../../api/quizzes.api'; // Added API import
 
 // --- Helper Functions ---
 const getGreeting = () => {
@@ -50,7 +51,7 @@ const SkeletonLoader = () => (
 
 // --- Main Dashboard Component ---
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [dashboardState, setDashboardState] = useState({
@@ -59,44 +60,29 @@ const Dashboard = () => {
     stats: { completed: 0, averageScore: 0, passedCount: 0 }
   });
 
+  // --- DYNAMIC DATA FETCHING ---
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+        setDashboardState(prev => ({ ...prev, loading: true }));
 
-        if (!token) {
-          throw new Error('Authentication required');
+        // Fetch all published quizzes using the new API method
+        const res = await quizzesAPI.getAvailableStudentQuizzes();
+
+        if (res.success) {
+          // Filter to only show active/published quizzes for the student
+          const activeQuizzes = res.data.filter(quiz => quiz.isPublished);
+
+          setDashboardState({
+            loading: false,
+            quizzes: activeQuizzes,
+            stats: {
+              completed: 0, // TODO: Update when Attempt History API is ready
+              averageScore: 0,
+              passedCount: 0
+            }
+          });
         }
-
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${baseUrl}/student/dashboard`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.status === 401) {
-          logout();
-          navigate('/login');
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        setDashboardState({
-          loading: false,
-          quizzes: data.assignedQuizzes || data.quizzes || [],
-          stats: {
-            completed: data.stats?.completed || 0,
-            averageScore: data.stats?.successRate || data.stats?.averageScore || 0,
-            passedCount: data.stats?.passedCount || 0
-          }
-        });
       } catch (err) {
         console.error('Dashboard Data Fetch Error:', err);
         setDashboardState(prev => ({
@@ -108,7 +94,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [logout, navigate]);
+  }, [navigate]);
 
   const { loading, quizzes, stats } = dashboardState;
 
@@ -209,17 +195,11 @@ const Dashboard = () => {
                         <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         {duration} Minutes
                       </span>
-                      {quiz.trainerName && (
-                        <>
-                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span className="text-gray-600">Trainer: <strong className="text-gray-900">{quiz.trainerName}</strong></span>
-                        </>
-                      )}
                     </div>
                   </div>
 
                   <Link
-                    to={`/student/quiz/${quizId}`}
+                    to={`/student/quiz/${quizId}/instructions`}
                     className="w-full sm:w-auto px-6 py-3 bg-black text-white hover:bg-yellow-400 hover:text-black text-sm font-bold rounded-xl transition-all text-center shrink-0 shadow-sm"
                   >
                     Start Assessment
