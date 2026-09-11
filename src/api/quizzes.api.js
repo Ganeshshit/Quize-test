@@ -197,5 +197,26 @@ export const quizzesAPI = {
         return response.data;
     },
 
+    // -----------------------------------------
+    // TRAINER DASHBOARD: ANTI-CHEATING LOGS
+    // -----------------------------------------
 
+    // 1. Get all students who took a specific quiz
+    getQuizAttemptsAdmin: async (quizId, params = {}) => {
+        const response = await axiosInstance.get(`/api/quizzes/${quizId}/attempts`, { params });
+        return response.data;
+    },
+
+    // 2. Get the final score and risk level for one specific student
+    getAttemptDetailAdmin: async (quizId, attemptId) => {
+        const response = await axiosInstance.get(`/api/quizzes/${quizId}/attempts/${attemptId}`);
+        return response.data;
+    },
+
+    // 3. Get the exact timeline of when they switched tabs or cheated
+    getAttemptAuditLog: async (attemptId) => {
+        const response = await axiosInstance.get(`/api/audit/${attemptId}`);
+        return response.data;
+    },
 };
+
