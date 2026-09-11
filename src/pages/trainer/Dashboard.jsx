@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import TrainerLayout from "../../components/Layout/TrainerLayout";
+import { quizzesAPI } from "../../api/quizzes.api";
 import {
   BookOpen,
   Activity,
@@ -22,37 +23,47 @@ const TrainerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // --- DATA FETCHING (Ready for Backend) ---
+  // --- DATA FETCHING (Dynamic) ---
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
 
-        // TODO: BACKEND DEVELOPER
-        // 1. Uncomment and add actual API endpoints here:
-        // const statsRes = await dashboardAPI.getTrainerStats();
-        // const quizzesRes = await dashboardAPI.getRecentQuizzes();
-        // 
-        // 2. Set the state with real data:
-        // setStats(statsRes.data);
-        // setRecentQuizzes(quizzesRes.data);
+        // Fetch real data from the API
+        const quizzesRes = await quizzesAPI.getAll();
+        
+        if (quizzesRes.success) {
+            const allQuizzes = quizzesRes.data;
+            
+            // Calculate real stats based on the fetched quizzes
+            const activeCount = allQuizzes.filter(q => q.isPublished).length;
+            const totalQuizzesCount = allQuizzes.length;
+            
+            // Calculate total attempts (sum of all attempt counts across quizzes)
+            const totalAttemptsCount = allQuizzes.reduce((sum, quiz) => sum + (quiz.attemptCount || 0), 0);
 
-        // --- SIMULATED API DELAY & MOCK DATA (Remove once API is connected) ---
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setStats({
-          totalQuizzes: 12,
-          activeQuizzes: 3,
-          totalAttempts: 145
-        });
-        setRecentQuizzes([
-          { _id: 1, title: "JavaScript Basics", status: "Active", time: "Closes today", attempts: 42 },
-          { _id: 2, title: "Data Structures", status: "Scheduled", time: "Tomorrow", attempts: 0 }
-        ]);
-        // ----------------------------------------------------------------------
+            setStats({
+                totalQuizzes: totalQuizzesCount,
+                activeQuizzes: activeCount,
+                totalAttempts: totalAttemptsCount
+            });
+
+            // Map the data to the format the UI expects for the "Recent Quizzes" list
+            // Grab only the 5 most recent ones
+            const formattedRecentQuizzes = allQuizzes.slice(0, 5).map(quiz => ({
+                _id: quiz._id,
+                title: quiz.title,
+                status: quiz.isPublished ? "Active" : "Draft",
+                time: quiz.durationMinutes ? `${quiz.durationMinutes} mins` : "Untimed",
+                attempts: quiz.attemptCount || 0
+            }));
+
+            setRecentQuizzes(formattedRecentQuizzes);
+        }
 
       } catch (err) {
         console.error(err);
-        setError("Failed to load dashboard data.");
+        setError("Failed to load real dashboard data.");
       } finally {
         setLoading(false);
       }
@@ -150,34 +161,40 @@ const TrainerDashboard = () => {
                     <p className="text-sm font-bold text-gray-500 text-center py-4">No recent quizzes found.</p>
                   ) : (
                     recentQuizzes.map((quiz) => (
-                      <div key={quiz._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors gap-4">
+                      <Link 
+                        to={`/trainer/quiz/${quiz._id}/attempts`} 
+                        key={quiz._id} 
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-yellow-50 border border-transparent hover:border-yellow-200 transition-all gap-4 group"
+                      >
                         <div className="flex items-start gap-4">
                           <div className={`p-2 rounded-lg mt-1 ${quiz.status === 'Active' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-600'}`}>
                             {quiz.status === 'Active' ? <Activity size={18} /> : <Clock size={18} />}
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold text-gray-900">{quiz.title}</h4>
+                            <h4 className="text-sm font-bold text-gray-900 group-hover:text-yellow-700 transition-colors">{quiz.title}</h4>
                             <p className="text-xs font-medium text-gray-500 mt-0.5">{quiz.time}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4 sm:gap-8 border-t sm:border-t-0 border-gray-200 pt-3 sm:pt-0">
                           <div className="text-left sm:text-right">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attempts</p>
-                            <p className="text-sm font-bold text-gray-900">{quiz.attempts}</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attempts / Logs</p>
+                            <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                              {quiz.attempts} <ArrowRight size={14} className="text-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-10px] group-hover:translate-x-0 duration-300" />
+                            </p>
                           </div>
-                          <span className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border ${quiz.status === 'Active' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-600'
-                            }`}>
+                          <span className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border ${quiz.status === 'Active' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
                             {quiz.status}
                           </span>
                         </div>
-                      </div>
+                      </Link>
                     ))
                   )}
                 </div>
               </div>
 
+
               {/* Quick Actions Panel */}
-              <div className="lg:col-span-1 bg-[#0A0A0A] rounded-3xl shadow-lg p-6 sm:p-8 text-white relative overflow-hidden">
+              <div className="lg:col-span-1 bg-[#0A0A0A] rounded-3xl shadow-lg p-6 sm:p-8 text-white relative overflow-hidden h-fit">
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-yellow-400 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
 
                 <h3 className="text-lg font-black text-white mb-2">Quick Actions</h3>

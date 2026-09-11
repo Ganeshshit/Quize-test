@@ -1,4 +1,3 @@
-// src/components/trainer/quiz/BulkUpload.jsx
 import React, { useState } from "react";
 import { Upload, FileUp, CheckCircle, AlertCircle, Download, Info, X, FileSpreadsheet, Loader2 } from "lucide-react";
 

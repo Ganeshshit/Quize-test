@@ -20,6 +20,7 @@ import QuizDetails from "../pages/trainer/QuizDetails";
 import QuizMonitor from "../pages/trainer/QuizMonitor";
 import AttemptDetails from "../pages/trainer/AttemptDetails";
 import QuizEnrollment from "../pages/trainer/QuizeEnrollment";
+import TrainerQuizAttempts from "../pages/trainer/TrainerQuizAttempts";
 
 // STUDENT pages
 import StudentDashboard from "../pages/student/Dashboard";
@@ -109,6 +110,12 @@ export const routes = [
     {
         path: "/trainer/quizzes/:quizId/attempts/:attemptId/details",
         element: <AttemptDetails />,
+        protected: true,
+        roles: ["trainer", "admin"],
+    },
+    {
+        path: "/trainer/quiz/:quizId/attempts",
+        element: <TrainerQuizAttempts />,
         protected: true,
         roles: ["trainer", "admin"],
     },
