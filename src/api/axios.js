@@ -3,8 +3,66 @@ import axios from 'axios';
 import { jwtService } from '../services/jwt.service';
 import { storageService } from '../services/storage.service';
 
-const BASE_URL = 'https://mediniquizeapplicationbackend.onrender.com/api/v1';
-// const BASE_URL='http://localhost:5000/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+
+// Rate limiting configuration
+const RATE_LIMIT_CONFIG = {
+    enabled: import.meta.env.VITE_RATE_LIMIT_ENABLED !== 'false',
+    maxRequestsPerMinute: parseInt(import.meta.env.VITE_MAX_REQUESTS_PER_MINUTE) || 60,
+    maxRequestsPerHour: parseInt(import.meta.env.VITE_MAX_REQUESTS_PER_HOUR) || 1000,
+    burstLimit: parseInt(import.meta.env.VITE_BURST_LIMIT) || 10,
+    burstWindowMs: 1000, // 1 second burst window
+};
+
+// Rate limiter implementation
+class RateLimiter {
+    constructor(config) {
+        this.config = config;
+        this.requests = [];
+        this.burstRequests = [];
+    }
+
+    check() {
+        if (!this.config.enabled) return { allowed: true };
+
+        const now = Date.now();
+        
+        // Clean old requests
+        this.requests = this.requests.filter(r => now - r.timestamp < 60000); // 1 minute
+        this.burstRequests = this.burstRequests.filter(r => now - r.timestamp < this.config.burstWindowMs);
+
+        // Check burst limit
+        if (this.burstRequests.length >= this.config.burstLimit) {
+            return {
+                allowed: false,
+                reason: 'burst_limit_exceeded',
+                retryAfter: Math.ceil((this.burstRequests[0].timestamp + this.config.burstWindowMs - now) / 1000),
+            };
+        }
+
+        // Check per-minute limit
+        if (this.requests.length >= this.config.maxRequestsPerMinute) {
+            return {
+                allowed: false,
+                reason: 'rate_limit_exceeded',
+                retryAfter: Math.ceil((this.requests[0].timestamp + 60000 - now) / 1000),
+            };
+        }
+
+        // Record request
+        this.requests.push({ timestamp: now });
+        this.burstRequests.push({ timestamp: now });
+
+        return { allowed: true };
+    }
+
+    reset() {
+        this.requests = [];
+        this.burstRequests = [];
+    }
+}
+
+const rateLimiter = new RateLimiter(RATE_LIMIT_CONFIG);
 
 // Create axios instance
 const axiosInstance = axios.create({
@@ -24,6 +82,20 @@ const MAX_REFRESH_ATTEMPTS = 3;
 // Request interceptor - Add auth token and security headers
 axiosInstance.interceptors.request.use(
     (config) => {
+        // Check rate limit
+        const rateLimitCheck = rateLimiter.check();
+        if (!rateLimitCheck.allowed) {
+            const error = new Error('Rate limit exceeded');
+            error.response = {
+                status: 429,
+                data: {
+                    message: `Rate limit exceeded: ${rateLimitCheck.reason}`,
+                    retryAfter: rateLimitCheck.retryAfter,
+                },
+            };
+            return Promise.reject(error);
+        }
+
         const token = storageService.getAccessToken();
 
         if (token && !jwtService.isTokenExpired(token)) {
@@ -118,7 +190,9 @@ axiosInstance.interceptors.response.use(
 
         if (error.response?.status === 429) {
             console.error('Rate limit exceeded:', error.response.data);
-            // Implement retry with exponential backoff
+            const retryAfter = error.response.data?.retryAfter || 60;
+            console.log(`Please wait ${retryAfter} seconds before retrying`);
+            // Implement retry with exponential backoff if needed
         }
 
         return Promise.reject(error);

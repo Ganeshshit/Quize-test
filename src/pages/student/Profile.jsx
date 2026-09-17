@@ -52,7 +52,7 @@ const Profile = () => {
 
         try {
             const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
             const response = await fetch(`${baseUrl}/users/profile`, {
                 method: 'PUT',

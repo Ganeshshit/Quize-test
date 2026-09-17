@@ -42,7 +42,7 @@ const Results = () => {
         const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
         if (!token) throw new Error("No authentication token found");
 
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
         const response = await fetch(`${baseUrl}/student/results`, {
           headers: {
             'Authorization': `Bearer ${token}`,

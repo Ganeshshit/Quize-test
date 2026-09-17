@@ -10,7 +10,7 @@ export const questionsAPI = {
             const response = await axiosInstance.get('/questions', { params });
             const data = response.data;
 
-            console.log('📥 API Response - Raw data:', JSON.stringify(data, null, 2));
+            // console.log('📥 API Response - Raw data:', JSON.stringify(data, null, 2));
 
             // Handle different response structures
             let questions = [];

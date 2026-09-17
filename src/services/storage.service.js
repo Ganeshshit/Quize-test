@@ -47,20 +47,21 @@ class StorageService {
      * In production, this should come from a secure environment variable
      */
     getEncryptionKey() {
-        // Priority: Environment variable > localStorage generated key > fallback
+        // Priority: Environment variable > generate new key
         if (import.meta.env.VITE_ENCRYPTION_KEY) {
-            return import.meta.env.VITE_ENCRYPTION_KEY;
+            const envKey = import.meta.env.VITE_ENCRYPTION_KEY;
+            // Validate key strength
+            const validation = this.validateEncryptionKey(envKey);
+            if (validation.valid) {
+                return envKey;
+            } else {
+                console.warn(`VITE_ENCRYPTION_KEY validation failed: ${validation.reason}. Generating secure key.`);
+            }
         }
         
-        // Check if we have a generated key in storage
-        const storedKey = localStorage.getItem('quiz_encryption_key');
-        if (storedKey) {
-            return storedKey;
-        }
-        
-        // Generate and store a secure key (for development only)
+        // Generate a secure key using Web Crypto API
         const secureKey = this.generateSecureKey();
-        localStorage.setItem('quiz_encryption_key', secureKey);
+        console.warn('Using dynamically generated encryption key. For production, set VITE_ENCRYPTION_KEY in .env');
         return secureKey;
     }
 
@@ -71,6 +72,33 @@ class StorageService {
         const array = new Uint8Array(32); // 256 bits
         crypto.getRandomValues(array);
         return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    /**
+     * Validate encryption key strength
+     */
+    validateEncryptionKey(key) {
+        if (!key || typeof key !== 'string') {
+            return { valid: false, reason: 'Key must be a non-empty string' };
+        }
+        
+        if (key.length < 32) {
+            return { valid: false, reason: 'Key must be at least 32 characters long' };
+        }
+        
+        // Check for sufficient entropy (variety of characters)
+        const hasUpperCase = /[A-Z]/.test(key);
+        const hasLowerCase = /[a-z]/.test(key);
+        const hasNumbers = /\d/.test(key);
+        const hasSpecial = /[^a-zA-Z0-9]/.test(key);
+        
+        const varietyScore = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecial].filter(Boolean).length;
+        
+        if (varietyScore < 2) {
+            return { valid: false, reason: 'Key should contain mix of character types (uppercase, lowercase, numbers, special characters)' };
+        }
+        
+        return { valid: true };
     }
 
     /**

@@ -74,8 +74,19 @@ export const SECURITY_CONFIG = {
         STYLE_SRC: "'self' 'unsafe-inline'",
         // Image sources
         IMG_SRC: "'self' data: https:",
-        // Connect sources
-        CONNECT_SRC: "'self' https://mediniquizeapplicationbackend.onrender.com",
+        // Connect sources - configured dynamically from environment
+        get CONNECT_SRC() {
+            const apiUrl = import.meta.env.VITE_API_BASE_URL;
+            if (apiUrl) {
+                try {
+                    const origin = new URL(apiUrl).origin;
+                    return `'self' ${origin}`;
+                } catch (e) {
+                    console.warn('Invalid API URL in CSP configuration');
+                }
+            }
+            return "'self'";
+        },
         // Font sources
         FONT_SRC: "'self' data:",
     },
