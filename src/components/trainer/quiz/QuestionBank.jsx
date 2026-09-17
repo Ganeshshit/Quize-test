@@ -30,6 +30,9 @@ const QuestionBank = ({
 }) => {
     const [showFilters, setShowFilters] = useState(false);
 
+    // Ensure subjects is an array
+    const subjectsArray = Array.isArray(subjects) ? subjects : [];
+
     // Remove questions already in quiz
     const availableQuestions = questionBank.filter(
         (bankQ) => !quizQuestions.some((quizQ) => quizQ._id === bankQ._id)
@@ -111,7 +114,7 @@ const QuestionBank = ({
                             className={inputClasses}
                         >
                             <option value="all">All Subjects</option>
-                            {subjects.map((sub) => (
+                            {subjectsArray.map((sub) => (
                                 <option key={sub._id} value={sub._id}>
                                     {sub.name}
                                 </option>

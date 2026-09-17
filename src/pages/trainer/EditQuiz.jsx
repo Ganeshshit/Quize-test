@@ -52,7 +52,7 @@ const EditQuiz = () => {
       //     quizzesAPI.getById(id),
       //     subjectsAPI.getAll()
       // ]);
-      // setSubjects(subjectsRes.data);
+      // setSubjects(Array.isArray(subjectsRes.data) ? subjectsRes.data : []);
       // setFormData(quizRes.data);
 
       // SIMULATED API DELAY & MOCK DATA

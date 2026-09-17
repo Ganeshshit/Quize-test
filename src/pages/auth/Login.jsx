@@ -31,18 +31,24 @@ const Login = () => {
 
         const res = await login(formData);
 
-        if (res?.success && res?.user?.role) {
+        // Handle different response structures
+        const userData = res?.data?.user || res?.user;
+        const userRole = userData?.role;
+
+        if (res?.success && userRole) {
             toast.success(res.message || "Login successful!");
-            const role = res.user.role;
+            
+            console.log('Login successful, redirecting based on role:', userRole);
 
             // Redirect according to role
             setTimeout(() => {
-                if (role === "trainer") navigate("/trainer/dashboard");
-                else if (role === "student") navigate("/student/dashboard");
-                else if (role === "admin") navigate("/admin/dashboard");
+                if (userRole === "trainer") navigate("/trainer/dashboard");
+                else if (userRole === "student") navigate("/student/dashboard");
+                else if (userRole === "admin") navigate("/admin/dashboard");
                 else navigate("/dashboard"); // fallback
             }, 1000);
         } else {
+            console.error('Login failed:', res);
             toast.error(res?.error || "Login failed. Please try again.");
         }
     };

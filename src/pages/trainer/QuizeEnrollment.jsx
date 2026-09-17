@@ -18,7 +18,7 @@ const QuizEnrollment = () => {
   // State
   const [quiz, setQuiz] = useState(null);
   const [activeTab, setActiveTab] = useState('not-enrolled'); // 'enrolled' | 'not-enrolled'
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState([]); // Ensure it's always an array
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -90,17 +90,25 @@ const QuizEnrollment = () => {
       let response;
       if (activeTab === 'enrolled') {
         response = await enrollmentAPI.getEnrolledStudents(quizId, params);
-        setStudents(response.data.map(e => ({
+        // Handle different response structures
+        const enrolledData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.students || []);
+        setStudents(enrolledData.map(e => ({
           ...e.student,
           enrolledAt: e.enrolledAt,
           attempts: e.attempts
         })));
       } else {
         response = await enrollmentAPI.getNotEnrolledStudents(quizId, params);
-        setStudents(response.data);
+        // Handle different response structures
+        const studentsData = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.students || []);
+        setStudents(studentsData);
       }
 
-      setPagination(response.pagination);
+      setPagination(response.pagination || response.data?.pagination || {});
     } catch (err) {
       setError('Failed to load students');
       console.error(err);
@@ -188,10 +196,11 @@ const QuizEnrollment = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedStudents.length === students.length) {
+    const studentsLength = Array.isArray(students) ? students.length : 0;
+    if (selectedStudents.length === studentsLength) {
       setSelectedStudents([]);
     } else {
-      setSelectedStudents(students.map(s => s._id));
+      setSelectedStudents(Array.isArray(students) ? students.map(s => s._id) : []);
     }
   };
 
@@ -364,7 +373,7 @@ const QuizEnrollment = () => {
               onClick={handleSelectAll}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-sm font-bold text-gray-700 transition-colors"
             >
-              {selectedStudents.length === students.length && students.length > 0 ? (
+              {selectedStudents.length === (Array.isArray(students) ? students.length : 0) && students.length > 0 ? (
                 <CheckSquare size={18} className="text-black" />
               ) : (
                 <Square size={18} className="text-gray-400" />
@@ -435,7 +444,7 @@ const QuizEnrollment = () => {
                       {error}
                     </td>
                   </tr>
-                ) : students.length === 0 ? (
+                ) : (Array.isArray(students) ? students.length : 0) === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center">
                       <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
@@ -444,7 +453,7 @@ const QuizEnrollment = () => {
                     </td>
                   </tr>
                 ) : (
-                  students.map((student) => (
+                  Array.isArray(students) && students.map((student) => (
                     <tr key={student._id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-center">
                         <input

@@ -12,11 +12,14 @@ const getGreeting = () => {
 };
 
 // --- Sub-Components ---
-const CategoryBadge = ({ category }) => (
-  <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200 uppercase tracking-wider">
-    {category || 'General'}
-  </span>
-);
+const CategoryBadge = ({ category }) => {
+  const displayCategory = typeof category === 'object' ? category?.name : category;
+  return (
+    <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200 uppercase tracking-wider">
+      {displayCategory || 'General'}
+    </span>
+  );
+};
 
 const StatCard = ({ title, value, subtitle, actionText, actionLink }) => (
   <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
@@ -66,8 +69,8 @@ const Dashboard = () => {
       try {
         setDashboardState(prev => ({ ...prev, loading: true }));
 
-        // Fetch all published quizzes using the new API method
-        const res = await quizzesAPI.getAvailableStudentQuizzes();
+        // Fetch all published quizzes using the available API method
+        const res = await quizzesAPI.getAll();
 
         if (res.success) {
           // Filter to only show active/published quizzes for the student
@@ -183,7 +186,7 @@ const Dashboard = () => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
                       <h3 className="text-base font-bold text-gray-900">{quiz.title}</h3>
-                      <CategoryBadge category={quiz.category || quiz.subject} />
+                      <CategoryBadge category={quiz.category || (typeof quiz.subject === 'object' ? quiz.subject?.name : quiz.subject)} />
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 font-medium">
                       <span className="flex items-center gap-1.5">

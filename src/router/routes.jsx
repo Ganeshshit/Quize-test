@@ -53,7 +53,7 @@ export const routes = [
         protected: false,
     },
     {
-        path: "/reset-password/:token",
+        path: "/reset-password",
         element: <ResetPassword />,
         protected: false,
     },

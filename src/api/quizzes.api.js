@@ -137,7 +137,9 @@ export const quizzesAPI = {
 
     // Student → Start quiz (creates attempt)
     start: async (quizId, payload) => {
+        console.log('quizzesAPI.start called with:', { quizId, payload });
         const response = await axiosInstance.post(`/quizzes/${quizId}/start`, payload);
+        console.log('quizzesAPI.start response:', response.data);
         return response.data;
     },
 

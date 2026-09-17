@@ -1,6 +1,11 @@
 // src/services/jwt.service.js
 
 class JWTService {
+    constructor() {
+        this.tokenBlacklist = new Set();
+        this.validationCache = new Map();
+    }
+
     /**
      * Decode JWT payload.
      * NOTE: This decodes the payload only.
@@ -9,6 +14,12 @@ class JWTService {
     decode(token) {
         try {
             if (!token || typeof token !== 'string') {
+                return null;
+            }
+
+            // Check if token is blacklisted
+            if (this.isTokenBlacklisted(token)) {
+                console.warn('Attempted to decode blacklisted token');
                 return null;
             }
 
@@ -123,57 +134,85 @@ class JWTService {
     }
 
     /**
-     * Validate JWT structure and required authentication claims.
+     * Validate JWT structure and required authentication claims with caching.
      *
      * This performs client-side structural/claim/expiration validation.
      * It does NOT cryptographically verify the JWT signature.
      */
     validateToken(token) {
+        // Check cache first
+        const cacheKey = this.getTokenCacheKey(token);
+        if (this.validationCache.has(cacheKey)) {
+            return this.validationCache.get(cacheKey);
+        }
+
         const decoded = this.decode(token);
 
         if (!decoded) {
-            return {
+            const result = {
                 valid: false,
                 reason: 'Invalid token format'
             };
+            this.validationCache.set(cacheKey, result);
+            return result;
         }
 
         if (this.isTokenExpired(token)) {
-            return {
+            const result = {
                 valid: false,
                 reason: 'Token expired'
             };
+            this.validationCache.set(cacheKey, result);
+            return result;
         }
 
         const userId = this.getUserId(token);
         const role = this.getUserRole(token);
 
         if (!userId || !role) {
-            return {
+            const result = {
                 valid: false,
                 reason: 'Missing required claims'
             };
+            this.validationCache.set(cacheKey, result);
+            return result;
         }
 
         // Validate issuer when supplied by the backend.
         if (decoded.iss && decoded.iss !== 'quiz-app') {
-            return {
+            const result = {
                 valid: false,
                 reason: 'Invalid issuer'
             };
+            this.validationCache.set(cacheKey, result);
+            return result;
         }
 
         // Validate audience when supplied by the backend.
         if (decoded.aud && decoded.aud !== 'quiz-app-users') {
-            return {
+            const result = {
                 valid: false,
                 reason: 'Invalid audience'
             };
+            this.validationCache.set(cacheKey, result);
+            return result;
         }
 
-        return {
+        // Validate token issued time (not issued in the future)
+        if (decoded.iat && decoded.iat > Math.floor(Date.now() / 1000)) {
+            const result = {
+                valid: false,
+                reason: 'Token issued in the future'
+            };
+            this.validationCache.set(cacheKey, result);
+            return result;
+        }
+
+        const result = {
             valid: true
         };
+        this.validationCache.set(cacheKey, result);
+        return result;
     }
 
     /**
@@ -202,6 +241,59 @@ class JWTService {
             permissions: decoded.permissions ?? [],
             exp: decoded.exp,
             iat: decoded.iat ?? null
+        };
+    }
+
+    /**
+     * Blacklist a token (for logout or security incidents)
+     */
+    blacklistToken(token) {
+        const tokenHash = this.getTokenCacheKey(token);
+        this.tokenBlacklist.add(tokenHash);
+        this.validationCache.delete(tokenHash);
+    }
+
+    /**
+     * Check if token is blacklisted
+     */
+    isTokenBlacklisted(token) {
+        const tokenHash = this.getTokenCacheKey(token);
+        return this.tokenBlacklist.has(tokenHash);
+    }
+
+    /**
+     * Clear token blacklist
+     */
+    clearBlacklist() {
+        this.tokenBlacklist.clear();
+        this.validationCache.clear();
+    }
+
+    /**
+     * Generate cache key for token
+     */
+    getTokenCacheKey(token) {
+        // Use first 10 and last 10 characters as a simple hash
+        if (!token || token.length < 20) {
+            return token;
+        }
+        return token.substring(0, 10) + token.substring(token.length - 10);
+    }
+
+    /**
+     * Clear validation cache
+     */
+    clearValidationCache() {
+        this.validationCache.clear();
+    }
+
+    /**
+     * Get token validation statistics
+     */
+    getValidationStats() {
+        return {
+            blacklistedTokens: this.tokenBlacklist.size,
+            cachedValidations: this.validationCache.size,
         };
     }
 }

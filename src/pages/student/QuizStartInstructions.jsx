@@ -103,7 +103,7 @@ const QuizStartInstructions = () => {
             }
 
             // 2️⃣ Calculate the attempt index (e.g., if they have 0 attempts, this is attempt 1)
-            const attemptIndex = (quiz.userAttemptCount || 0) + 1;
+            const attemptIndex = (quiz?.userAttemptCount || 0) + 1;
 
             // 3️⃣ Pass the required data to the API
             const payload = {
@@ -111,8 +111,12 @@ const QuizStartInstructions = () => {
                 attemptIndex: attemptIndex
             };
 
+            console.log('Starting quiz with payload:', payload);
+
             // Pass the payload as the second argument
             const res = await quizzesAPI.start(quizId, payload);
+
+            console.log('Start quiz response:', res);
 
             if (res.success && res.data) {
                 toast.success("Assessment started!");
@@ -122,6 +126,7 @@ const QuizStartInstructions = () => {
             }
         } catch (error) {
             console.error("Start quiz error:", error);
+            console.error("Error response:", error.response?.data);
 
             // Format the error nicely if the backend sends an array of details
             const errorMsg = error?.response?.data?.error || "Failed to start assessment";

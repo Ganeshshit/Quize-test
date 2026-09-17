@@ -3,9 +3,12 @@ import React, { useState, useEffect } from 'react';
 import TrainerLayout from '../../components/Layout/TrainerLayout';
 import { Mail, Shield, Key, Save, Lock, Edit2, X, User, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { authService } from '../../services/auth.service';
+import { useNavigate } from 'react-router-dom';
 
 const TrainerProfile = () => {
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     // --- PROFILE EDIT STATE ---
     const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -97,11 +100,23 @@ const TrainerProfile = () => {
 
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API
-            toast.success("Password updated successfully!");
-            setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
+            const response = await authService.changePassword(
+                passwords.currentPassword,
+                passwords.newPassword
+            );
+
+            if (response.success) {
+                toast.success(response.message || "Password updated successfully!");
+                setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                // Redirect to login after successful password change
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            } else {
+                toast.error(response.error || "Failed to update password");
+            }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to update password");
+            toast.error(error.message || "Failed to update password");
         } finally {
             setLoading(false);
         }

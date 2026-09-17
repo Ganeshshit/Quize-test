@@ -12,22 +12,28 @@ class AuthService {
         try {
             const response = await authAPI.register(userData);
 
+            // Handle different response structures
+            const responseData = response.data?.user || response.user;
+            const accessToken = response.data?.accessToken || response.accessToken;
+            const refreshToken = response.data?.refreshToken || response.refreshToken;
+            const message = response.data?.message || response.message || 'Registration successful';
+
             // Store tokens
-            if (response.accessToken) {
-                storageService.setAccessToken(response.accessToken);
+            if (accessToken) {
+                storageService.setAccessToken(accessToken);
             }
 
-            if (response.refreshToken) {
-                storageService.setRefreshToken(response.refreshToken);
+            if (refreshToken) {
+                storageService.setRefreshToken(refreshToken);
             }
 
             // Prefer backend user data.
             // If unavailable, extract user information from the access token.
-            const tokenUser = response.accessToken
-                ? jwtService.getUserInfo(response.accessToken)
+            const tokenUser = accessToken
+                ? jwtService.getUserInfo(accessToken)
                 : null;
 
-            const currentUser = response.user || tokenUser;
+            const currentUser = responseData || tokenUser;
 
             if (currentUser) {
                 storageService.setUserData(currentUser);
@@ -36,10 +42,11 @@ class AuthService {
             return {
                 success: true,
                 data: {
-                    ...response,
                     user: currentUser,
+                    accessToken,
+                    refreshToken,
                 },
-                message: response.message || 'Registration successful',
+                message,
             };
         } catch (error) {
             return {
@@ -60,36 +67,57 @@ class AuthService {
         try {
             const response = await authAPI.login(credentials);
 
+            // Handle different response structures
+            const userData = response.data?.user || response.user;
+            const accessToken = response.data?.accessToken || response.accessToken;
+            const refreshToken = response.data?.refreshToken || response.refreshToken;
+            const message = response.data?.message || response.message || 'Login successful';
+
+            console.log('Auth Service - Login Response:', {
+                hasUserData: !!userData,
+                hasAccessToken: !!accessToken,
+                hasRefreshToken: !!refreshToken,
+                userRole: userData?.role,
+                message
+            });
+
             // Store tokens
-            if (response.accessToken) {
-                storageService.setAccessToken(response.accessToken);
+            if (accessToken) {
+                storageService.setAccessToken(accessToken);
             }
 
-            if (response.refreshToken) {
-                storageService.setRefreshToken(response.refreshToken);
+            if (refreshToken) {
+                storageService.setRefreshToken(refreshToken);
             }
 
             // Prefer backend user data.
             // If unavailable, extract user information from the access token.
-            const tokenUser = response.accessToken
-                ? jwtService.getUserInfo(response.accessToken)
+            const tokenUser = accessToken
+                ? jwtService.getUserInfo(accessToken)
                 : null;
 
-            const currentUser = response.user || tokenUser;
+            const currentUser = userData || tokenUser;
 
             if (currentUser) {
                 storageService.setUserData(currentUser);
+                console.log('Auth Service - User data stored:', {
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    role: currentUser.role
+                });
             }
 
             return {
                 success: true,
                 data: {
-                    ...response,
                     user: currentUser,
+                    accessToken,
+                    refreshToken,
                 },
-                message: response.message || 'Login successful',
+                message,
             };
         } catch (error) {
+            console.error('Auth Service - Login Error:', error);
             return {
                 success: false,
                 error:
@@ -128,18 +156,22 @@ class AuthService {
 
             const response = await authAPI.refresh(refreshToken);
 
+            // Handle different response structures
+            const accessToken = response.data?.accessToken || response.accessToken;
+            const newRefreshToken = response.data?.refreshToken || response.refreshToken;
+
             // Update tokens
-            if (response.accessToken) {
-                storageService.setAccessToken(response.accessToken);
+            if (accessToken) {
+                storageService.setAccessToken(accessToken);
             }
 
-            if (response.refreshToken) {
-                storageService.setRefreshToken(response.refreshToken);
+            if (newRefreshToken) {
+                storageService.setRefreshToken(newRefreshToken);
             }
 
             // Refresh user information from the new access token.
-            if (response.accessToken) {
-                const tokenUser = jwtService.getUserInfo(response.accessToken);
+            if (accessToken) {
+                const tokenUser = jwtService.getUserInfo(accessToken);
 
                 if (tokenUser) {
                     storageService.setUserData(tokenUser);
@@ -148,7 +180,7 @@ class AuthService {
 
             return {
                 success: true,
-                accessToken: response.accessToken,
+                accessToken,
             };
         } catch (error) {
             // If refresh fails, logout user.
@@ -222,6 +254,33 @@ class AuthService {
                 error:
                     error.response?.data?.message ||
                     'Email verification failed',
+            };
+        }
+    }
+
+    /**
+     * Change password (authenticated)
+     */
+    async changePassword(currentPassword, newPassword) {
+        try {
+            const response = await authAPI.changePassword(currentPassword, newPassword);
+
+            // Clear auth data to force re-login since token is invalidated
+            storageService.clearAuth();
+
+            return {
+                success: true,
+                data: response,
+                message: response.message || 'Password changed successfully. Please log in again.',
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error:
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Password change failed',
+                message: error.response?.data?.message,
             };
         }
     }

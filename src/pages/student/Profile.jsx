@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { User, Mail, Lock, Shield, Save, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
+import { authService } from "../../services/auth.service";
+import { useNavigate } from "react-router-dom";
 
 // Utility for Avatar Initials
 const getInitials = (name = '') => {
@@ -15,6 +17,7 @@ const getInitials = (name = '') => {
 const Profile = () => {
     // 1. Pull dynamic user data from authentication state
     const { user, login } = useAuth(); // Assuming 'login' or an 'updateUser' function updates local auth state
+    const navigate = useNavigate();
 
     // 2. Separate states for Profile Info and Password updates
     const [profileForm, setProfileForm] = useState({ name: "", email: "" });
@@ -91,28 +94,22 @@ const Profile = () => {
         setIsSavingPassword(true);
 
         try {
-            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const response = await authService.changePassword(
+                passwordForm.currentPassword,
+                passwordForm.newPassword
+            );
 
-            const response = await fetch(`${baseUrl}/users/change-password`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    currentPassword: passwordForm.currentPassword,
-                    newPassword: passwordForm.newPassword
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) throw new Error(data.message || "Failed to change password");
-
-            toast.success("Password changed successfully!");
-            // Clear password form on success
-            setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+            if (response.success) {
+                toast.success(response.message || "Password changed successfully!");
+                // Clear password form on success
+                setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                // Redirect to login after successful password change
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            } else {
+                toast.error(response.error || "Failed to update password.");
+            }
 
         } catch (error) {
             console.error("Password update error:", error);
