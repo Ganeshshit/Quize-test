@@ -1,4 +1,4 @@
-name: Update README
+name: Update README Date
 
 on:
   push:
@@ -16,17 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get latest commit date
-        id: commit_date
+      - name: Update current date
         run: |
-          DATE=$(git log -1 --format=%ad --date=format:'%B %-d, %Y')
-          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          TODAY=$(date -u +"%B %-d, %Y")
 
-      - name: Update README
-        run: |
-          sed -i "s/Last Updated: <!-- LAST_UPDATED -->/Last Updated: ${{ steps.commit_date.outputs.date }} <!-- LAST_UPDATED -->/" README.md
+          sed -i "s/Last Updated: <!-- LAST_UPDATED -->/Last Updated: $TODAY <!-- LAST_UPDATED -->/" README.md
 
-      - name: Commit changes
+      - name: Commit README changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -34,8 +30,8 @@ jobs:
           git add README.md
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes to commit"
           else
-            git commit -m "docs: update repository stats"
+            git commit -m "docs: update last updated date"
             git push
           fi
