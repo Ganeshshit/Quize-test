@@ -182,7 +182,7 @@ const QuizList = () => {
       </button>
 
       <Link
-        to={`/trainer/quizzes/edit/${quiz._id}`}
+        to={`/trainer/quizzes/${quiz._id}/edit`}
         title="Edit"
         className="p-2 rounded-xl bg-gray-100 hover:bg-yellow-400 hover:text-black text-gray-700 transition-colors"
       >
