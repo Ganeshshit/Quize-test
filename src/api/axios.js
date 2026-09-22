@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { jwtService } from '../services/jwt.service';
 import { storageService } from '../services/storage.service';
+import { performanceMonitor } from '../utils/performanceMonitor';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
@@ -82,6 +83,9 @@ const MAX_REFRESH_ATTEMPTS = 3;
 // Request interceptor - Add auth token and security headers
 axiosInstance.interceptors.request.use(
     (config) => {
+        // Start performance timing
+        config.metadata = { startTime: performance.now() };
+
         // Check rate limit
         const rateLimitCheck = rateLimiter.check();
         if (!rateLimitCheck.allowed) {
@@ -123,6 +127,18 @@ axiosInstance.interceptors.request.use(
 // Response interceptor - Handle token refresh with security improvements
 axiosInstance.interceptors.response.use(
     (response) => {
+        // Calculate and record request duration
+        if (response.config.metadata?.startTime) {
+            const duration = performance.now() - response.config.metadata.startTime;
+            performanceMonitor.recordMetric('api_request', {
+                url: response.config.url,
+                method: response.config.method,
+                duration,
+                status: response.status,
+                success: true,
+            });
+        }
+
         // Reset refresh attempts on successful response
         refreshAttempts = 0;
         
@@ -135,6 +151,19 @@ axiosInstance.interceptors.response.use(
         return response;
     },
     async (error) => {
+        // Calculate and record request duration for failed requests
+        if (error.config?.metadata?.startTime) {
+            const duration = performance.now() - error.config.metadata.startTime;
+            performanceMonitor.recordMetric('api_request', {
+                url: error.config.url,
+                method: error.config.method,
+                duration,
+                status: error.response?.status,
+                success: false,
+                error: error.message,
+            });
+        }
+
         const originalRequest = error.config;
 
         // If error is 401 and we haven't retried yet

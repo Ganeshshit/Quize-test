@@ -16,7 +16,8 @@ import {
   ChevronDown,
   Database,
   Layers,
-  FileText
+  FileText,
+  Sparkles
 } from "lucide-react";
 
 const QuestionList = () => {
@@ -124,13 +125,22 @@ const QuestionList = () => {
             </p>
           </div>
 
-          <Link
-            to="/trainer/questions/create"
-            className="px-6 py-3 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 group"
-          >
-            <Plus size={18} className="text-yellow-400 group-hover:scale-110 transition-transform" />
-            Create Question
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              to="/trainer/questions/ai"
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 group"
+            >
+              <Sparkles size={18} className="text-white group-hover:scale-110 transition-transform" />
+              AI Generate
+            </Link>
+            <Link
+              to="/trainer/questions/create"
+              className="px-6 py-3 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 group"
+            >
+              <Plus size={18} className="text-yellow-400 group-hover:scale-110 transition-transform" />
+              Create Question
+            </Link>
+          </div>
         </div>
 
         {/* Stats Section */}
@@ -328,13 +338,22 @@ const QuestionList = () => {
                 Clear Filters
               </button>
             ) : (
-              <Link
-                to="/trainer/questions/create"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#0A0A0A] text-white rounded-xl hover:bg-black font-bold text-sm transition-colors shadow-md"
-              >
-                <Plus size={18} className="text-yellow-400" />
-                Create First Question
-              </Link>
+              <div className="flex gap-3 justify-center">
+                <Link
+                  to="/trainer/questions/ai"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 font-bold text-sm transition-colors shadow-md"
+                >
+                  <Sparkles size={18} className="text-white" />
+                  AI Generate
+                </Link>
+                <Link
+                  to="/trainer/questions/create"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#0A0A0A] text-white rounded-xl hover:bg-black font-bold text-sm transition-colors shadow-md"
+                >
+                  <Plus size={18} className="text-yellow-400" />
+                  Create First Question
+                </Link>
+              </div>
             )}
           </div>
         ) : (

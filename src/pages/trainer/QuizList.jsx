@@ -1,8 +1,9 @@
 // src/pages/trainer/QuizList.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import TrainerLayout from "../../components/Layout/TrainerLayout";
 import { quizzesAPI } from "../../api/quizzes.api";
+import VirtualList from "../../components/common/VirtualList";
 import {
   ClipboardList,
   Plus,
@@ -100,7 +101,7 @@ const QuizList = () => {
     navigate(`/trainer/quizzes/${id}/monitor`);
   };
 
-  const filteredQuizzes = quizzes.filter((q) => {
+  const filteredQuizzes = useMemo(() => quizzes.filter((q) => {
     const matchesSearch =
       q.title.toLowerCase().includes(search.toLowerCase()) ||
       q.subject?.name?.toLowerCase().includes(search.toLowerCase());
@@ -116,7 +117,7 @@ const QuizList = () => {
           : !q.isPublished;
 
     return matchesSearch && matchesStatus && matchesPublish;
-  });
+  }), [quizzes, search, statusFilter, publishFilter]);
 
   return (
     <TrainerLayout>
@@ -182,6 +183,10 @@ const QuizList = () => {
             <div className="w-10 h-10 border-4 border-gray-200 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading quizzes...</p>
           </div>
+        ) : filteredQuizzes.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-gray-200 p-16 text-center shadow-sm">
+            <p className="text-gray-400 font-medium">No quizzes found matching your criteria.</p>
+          </div>
         ) : (
           <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
@@ -198,122 +203,114 @@ const QuizList = () => {
                 </thead>
 
                 <tbody className="text-sm">
-                  {filteredQuizzes.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="p-12 text-center text-gray-400 font-medium">
-                        No quizzes found matching your criteria.
+                  {filteredQuizzes.map((quiz) => (
+                    <tr
+                      key={quiz._id}
+                      className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer group"
+                      onClick={() => navigate(`/trainer/quizzes/${quiz._id}/details`)}
+                    >
+                      <td className="p-4 pl-6 align-top">
+                        <div className="font-bold text-gray-900 group-hover:text-yellow-600 transition-colors">
+                          {quiz.title}
+                        </div>
+                        <div className="text-xs font-medium text-gray-500 mt-0.5">
+                          Subject: {quiz.subject?.name || "-"}
+                        </div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">
+                          Duration: {formatDuration(quiz.durationSeconds)} • Allowed: {quiz.attemptsAllowed}
+                        </div>
+                      </td>
+
+                      <td className="p-4 align-top text-xs font-medium text-gray-600">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Start:</span>
+                          {formatDateTime(quiz.startTime)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">End:</span>
+                          {formatDateTime(quiz.endTime)}
+                        </div>
+                      </td>
+
+                      <td className="p-4 align-top text-xs font-medium text-gray-600">
+                        <div>Total: <span className="font-bold text-gray-900">{quiz.totalAttempts || 0}</span></div>
+                        <div>In progress: <span className="font-bold text-gray-900">{quiz.inProgressAttempts || 0}</span></div>
+                        <div className={(quiz.flaggedAttempts || 0) > 0 ? "text-red-600 font-bold" : ""}>
+                          Flagged: {quiz.flaggedAttempts || 0}
+                        </div>
+                      </td>
+
+                      <td className="p-4 align-top">
+                        <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusBadgeClass(quiz.status)}`}>
+                          {quiz.status}
+                        </span>
+                      </td>
+
+                      <td className="p-4 align-top">
+                        {quiz.isPublished ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle size={12} /> Published
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                            <XCircle size={12} /> Unpublished
+                          </span>
+                        )}
+                      </td>
+
+                      {/* ACTIONS */}
+                      <td
+                        className="p-4 pr-6 align-top text-right"
+                        onClick={(e) => e.stopPropagation()} // Prevent row click navigation
+                      >
+                        <div className="flex items-center justify-end gap-2">
+
+                          <button
+                            onClick={() => navigate(`/trainer/quizzes/${quiz._id}/details`)}
+                            title="Details"
+                            className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                          >
+                            <Eye size={16} />
+                          </button>
+
+                          <Link
+                            to={`/trainer/quizzes/edit/${quiz._id}`}
+                            title="Edit"
+                            className="p-2 rounded-xl bg-gray-100 hover:bg-yellow-400 hover:text-black text-gray-700 transition-colors"
+                          >
+                            <Edit3 size={16} />
+                          </Link>
+
+                          <button
+                            onClick={() => handleTogglePublish(quiz._id, quiz.isPublished)}
+                            title={quiz.isPublished ? "Unpublish" : "Publish"}
+                            className={`p-2 rounded-xl transition-colors ${quiz.isPublished
+                              ? "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                              }`}
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleMonitor(quiz._id)}
+                            title="Monitor"
+                            className="p-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+                          >
+                            <Activity size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(quiz._id)}
+                            title="Delete"
+                            className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    filteredQuizzes.map((quiz) => (
-                      <tr
-                        key={quiz._id}
-                        className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer group"
-                        onClick={() => navigate(`/trainer/quizzes/${quiz._id}/details`)}
-                      >
-                        <td className="p-4 pl-6 align-top">
-                          <div className="font-bold text-gray-900 group-hover:text-yellow-600 transition-colors">
-                            {quiz.title}
-                          </div>
-                          <div className="text-xs font-medium text-gray-500 mt-0.5">
-                            Subject: {quiz.subject?.name || "-"}
-                          </div>
-                          <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">
-                            Duration: {formatDuration(quiz.durationSeconds)} • Allowed: {quiz.attemptsAllowed}
-                          </div>
-                        </td>
-
-                        <td className="p-4 align-top text-xs font-medium text-gray-600">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Start:</span>
-                            {formatDateTime(quiz.startTime)}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">End:</span>
-                            {formatDateTime(quiz.endTime)}
-                          </div>
-                        </td>
-
-                        <td className="p-4 align-top text-xs font-medium text-gray-600">
-                          <div>Total: <span className="font-bold text-gray-900">{quiz.totalAttempts || 0}</span></div>
-                          <div>In progress: <span className="font-bold text-gray-900">{quiz.inProgressAttempts || 0}</span></div>
-                          <div className={(quiz.flaggedAttempts || 0) > 0 ? "text-red-600 font-bold" : ""}>
-                            Flagged: {quiz.flaggedAttempts || 0}
-                          </div>
-                        </td>
-
-                        <td className="p-4 align-top">
-                          <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusBadgeClass(quiz.status)}`}>
-                            {quiz.status}
-                          </span>
-                        </td>
-
-                        <td className="p-4 align-top">
-                          {quiz.isPublished ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <CheckCircle size={12} /> Published
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
-                              <XCircle size={12} /> Unpublished
-                            </span>
-                          )}
-                        </td>
-
-                        {/* ACTIONS */}
-                        <td
-                          className="p-4 pr-6 align-top text-right"
-                          onClick={(e) => e.stopPropagation()} // Prevent row click navigation
-                        >
-                          <div className="flex items-center justify-end gap-2">
-
-                            <button
-                              onClick={() => navigate(`/trainer/quizzes/${quiz._id}/details`)}
-                              title="Details"
-                              className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                            >
-                              <Eye size={16} />
-                            </button>
-
-                            <Link
-                              to={`/trainer/quizzes/edit/${quiz._id}`}
-                              title="Edit"
-                              className="p-2 rounded-xl bg-gray-100 hover:bg-yellow-400 hover:text-black text-gray-700 transition-colors"
-                            >
-                              <Edit3 size={16} />
-                            </Link>
-
-                            <button
-                              onClick={() => handleTogglePublish(quiz._id, quiz.isPublished)}
-                              title={quiz.isPublished ? "Unpublish" : "Publish"}
-                              className={`p-2 rounded-xl transition-colors ${quiz.isPublished
-                                ? "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
-                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                                }`}
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-
-                            <button
-                              onClick={() => handleMonitor(quiz._id)}
-                              title="Monitor"
-                              className="p-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
-                            >
-                              <Activity size={16} />
-                            </button>
-
-                            <button
-                              onClick={() => handleDelete(quiz._id)}
-                              title="Delete"
-                              className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>

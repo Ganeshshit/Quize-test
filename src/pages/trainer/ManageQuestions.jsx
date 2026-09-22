@@ -11,7 +11,8 @@ import {
   Loader2,
   AlertCircle,
   Filter,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { questionsAPI } from '../../api/questions.api';
@@ -117,12 +118,20 @@ const ManageQuestions = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/trainer/questions/create')}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl shadow-md transition-all whitespace-nowrap"
-          >
-            <Plus size={18} /> Add New Question
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate('/trainer/questions/ai')}
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-bold rounded-xl shadow-md transition-all whitespace-nowrap"
+            >
+              <Sparkles size={18} /> AI Generate
+            </button>
+            <button
+              onClick={() => navigate('/trainer/questions/create')}
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl shadow-md transition-all whitespace-nowrap"
+            >
+              <Plus size={18} /> Add New Question
+            </button>
+          </div>
         </div>
 
         {/* Toolbar */}

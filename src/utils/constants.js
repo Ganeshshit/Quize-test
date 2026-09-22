@@ -204,6 +204,7 @@ export const ROUTES = {
     TRAINER_QUESTIONS: '/trainer/questions',
     TRAINER_QUESTION_CREATE: '/trainer/questions/create',
     TRAINER_QUESTION_EDIT: '/trainer/questions/:id/edit',
+    TRAINER_AI_QUESTIONS: '/trainer/questions/ai',
     TRAINER_SUBJECTS: '/trainer/subjects',
     TRAINER_GRADING: '/trainer/grading',
 
