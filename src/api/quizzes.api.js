@@ -218,5 +218,22 @@ export const quizzesAPI = {
         const response = await axiosInstance.get(`/api/audit/${attemptId}`);
         return response.data;
     },
+
+    // -----------------------------------------
+    // STUDENT: QUIZZES & RESULTS
+    // -----------------------------------------
+
+    // Get all available quizzes for students
+    getAvailableStudentQuizzes: async () => {
+        const response = await axiosInstance.get('/api/quizzes');
+        return response.data;
+    },
+
+    // Get specific student attempt result
+    getStudentAttemptResult: async (quizId, attemptId) => {
+        const response = await axiosInstance.get(`/api/quizzes/${quizId}/attempts/${attemptId}`);
+        return response.data;
+    },
 };
+
 
