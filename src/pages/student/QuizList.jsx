@@ -61,7 +61,8 @@ const QuizList = () => {
   // Fetch quizzes (on first load + when search changes)
   useEffect(() => {
     fetchQuizzes();
-  }, [debouncedSearch, fetchQuizzes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]); // Removed fetchQuizzes to prevent infinite loop
 
   const handleEnroll = async (quizId) => {
     try {
