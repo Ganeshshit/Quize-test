@@ -5,6 +5,22 @@
     <!-- <link rel="icon" type="image/svg+xml" href="/vite.svg" /> -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>onlinetest | Medini</title>
+    
+    <!-- Content Security Policy - Basic CSP for development, should be enhanced for production -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: https:;
+      font-src 'self' data:;
+      connect-src 'self' http://localhost:5000 https://localhost:5000 https://mediniquizeapplicationbackend.onrender.com ws://localhost:5000 wss://localhost:5000;
+      frame-src 'none';
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    ">
+    
+    <meta name="description" content="Secure online quiz application">
   </head>
   <body>
     <div id="root"></div>

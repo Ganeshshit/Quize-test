@@ -52,4 +52,13 @@ export const authAPI = {
         });
         return response.data;
     },
+
+    // Change password (authenticated)
+    changePassword: async (currentPassword, newPassword) => {
+        const response = await axiosInstance.post('/auth/change-password', {
+            currentPassword,
+            newPassword,
+        });
+        return response.data;
+    },
 };

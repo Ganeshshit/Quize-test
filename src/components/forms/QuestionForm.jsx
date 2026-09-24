@@ -60,6 +60,8 @@ const QuestionForm = ({
                     list = data.subjects;
                 } else if (Array.isArray(data?.data)) {
                     list = data.data;
+                } else if (Array.isArray(data?.data?.subjects)) {
+                    list = data.data.subjects;
                 } else {
                     console.warn("Unexpected subjects API response:", data);
                 }

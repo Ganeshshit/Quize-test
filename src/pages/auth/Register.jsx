@@ -99,12 +99,24 @@ const Register = () => {
 
         const result = await register(payload);
         
+        // Handle different response structures
+        const userData = result?.data?.user || result?.user;
+        const userRole = userData?.role;
+
         if (result.success) {
             toast.success(result.message || "Registration successful! Please verify your email.");
+            
+            console.log('Registration successful, user role:', userRole);
+
             setTimeout(() => {
-                navigate("/dashboard");
+                // Redirect based on role
+                if (userRole === "trainer") navigate("/trainer/dashboard");
+                else if (userRole === "student") navigate("/student/dashboard");
+                else if (userRole === "admin") navigate("/admin/dashboard");
+                else navigate("/dashboard"); // fallback
             }, 2000);
         } else {
+            console.error('Registration failed:', result);
             toast.error(result.error || "Registration failed. Please try again.");
         }
     };

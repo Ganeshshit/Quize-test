@@ -2,11 +2,10 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { quizzesAPI } from "../../api/quizzes.api";
-import { proctorAPI, PROCTOR_EVENTS } from "../../api/proctor.api";
-import { socketService } from "../../services/socket.service";
+import { auditAPI } from "../../api/audit.api";
 import { toast } from "react-hot-toast";
 import {
-  Clock, AlertTriangle, ShieldCheck,
+  Clock, AlertTriangle,
   MonitorOff, ArrowRight, ArrowLeft, LayoutGrid,
   XCircle, CheckCircle2, Circle, X, Monitor, Lock
 } from 'lucide-react';
@@ -24,19 +23,19 @@ const QuizAttempt = () => {
   const [submitting, setSubmitting] = useState(false);
   const [tabSwitches, setTabSwitches] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [needsFullscreenInteraction, setNeedsFullscreenInteraction] = useState(false); // NEW: Handles browser security blocks
+  const [needsFullscreenInteraction, setNeedsFullscreenInteraction] = useState(false);
   const [showMobileGrid, setShowMobileGrid] = useState(false);
+  const [riskScore, setRiskScore] = useState(0);
+  const [riskLevel, setRiskLevel] = useState('low');
   const [cameraStream, setCameraStream] = useState(null);
-  const [proctorConnected, setProctorConnected] = useState(false);
 
   // --- Refs ---
   const timerRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
   const autoSaveIntervalRef = useRef(null);
   const visibilityChangeCountRef = useRef(0);
-  const videoRef = useRef(null);
   const isAutoSubmittingRef = useRef(false);
-  const proctorTokenRef = useRef(null);
+  const videoRef = useRef(null);
 
   // Generate client fingerprint
   const generateFingerprint = useCallback(() => {
@@ -51,6 +50,28 @@ const QuizAttempt = () => {
   const [clientFingerprint] = useState(() => generateFingerprint());
 
   // ==========================================
+  // SECURITY - Log Audit Event
+  // ==========================================
+  const logAuditEvent = useCallback(async (eventType, meta = {}) => {
+    if (!attemptId || isAutoSubmittingRef.current) return;
+
+    try {
+      await auditAPI.logEvent({
+        attemptId,
+        eventType,
+        clientTimestamp: new Date().toISOString(),
+        meta: {
+          ...meta,
+          screenResolution: `${window.screen.width}x${window.screen.height}`,
+          viewportSize: `${window.innerWidth}x${window.innerHeight}`
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log audit event:', error);
+    }
+  }, [attemptId]);
+
+  // ==========================================
   // SECURITY - Fullscreen enforcement
   // ==========================================
   const enterFullScreen = async () => {
@@ -59,9 +80,7 @@ const QuizAttempt = () => {
         await document.documentElement.requestFullscreen();
         setIsFullScreen(true);
         setNeedsFullscreenInteraction(false);
-        if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_ENTER);
-        }
+        await logAuditEvent('fullscreen_enter');
       }
     } catch (err) {
       console.warn("Fullscreen blocked by browser due to missing user interaction.");
@@ -80,10 +99,8 @@ const QuizAttempt = () => {
 
       if (!isFS && !submitting && !isAutoSubmittingRef.current) {
         toast.error("⚠️ You exited fullscreen! Please return to fullscreen mode!", { duration: 5000 });
-        setNeedsFullscreenInteraction(true); // Force interaction overlay if they escape
-        if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.FULLSCREEN_EXIT, { timestamp: Date.now() });
-        }
+        setNeedsFullscreenInteraction(true);
+        await logAuditEvent('fullscreen_exit');
       }
     };
 
@@ -95,10 +112,10 @@ const QuizAttempt = () => {
         document.exitFullscreen().catch(() => { });
       }
     };
-  }, [attempt, submitting, proctorConnected, attemptId]);
+  }, [attempt, submitting, logAuditEvent]);
 
   // ==========================================
-  // SECURITY - Camera Access
+  // SECURITY - Camera Access (Optional)
   // ==========================================
   useEffect(() => {
     if (!attempt?.quiz?.antiCheatSettings?.enableWebcamProctoring) return;
@@ -113,47 +130,39 @@ const QuizAttempt = () => {
         setCameraStream(stream);
         if (videoRef.current) videoRef.current.srcObject = stream;
 
-        if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_ENABLED);
-        }
+        await logAuditEvent('camera_enabled');
+        toast.success("Camera connected successfully");
       } catch (error) {
         toast.error("⚠️ Camera access is required for this quiz!");
-        if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.CAMERA_BLOCKED, { error: error.message });
-        }
+        await logAuditEvent('camera_blocked', { error: error.message });
         setTimeout(() => navigate("/student/enrolled"), 3000);
       }
     };
 
     startCamera();
+
     return () => {
       if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
     };
-  }, [attempt, proctorConnected, attemptId, navigate]);
+  }, [attempt, logAuditEvent, navigate]);
 
   // ==========================================
   // SECURITY - Tab switch detection
   // ==========================================
   useEffect(() => {
-    if (!attempt?.quiz?.antiCheatSettings?.enableTabSwitchDetection) return;
-
     const handleVisibilityChange = async () => {
       if (document.hidden && !isAutoSubmittingRef.current) {
         visibilityChangeCountRef.current += 1;
         const newCount = visibilityChangeCountRef.current;
         setTabSwitches(newCount);
 
-        const maxSwitches = attempt.quiz.antiCheatSettings.maxTabSwitches || 2;
+        const maxSwitches = attempt?.quiz?.antiCheatSettings?.maxTabSwitches || 5;
 
-        if (proctorConnected) {
-          await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.TAB_SWITCH, { count: newCount, maxAllowed: maxSwitches });
-        }
+        await logAuditEvent('tab_switch', { count: newCount, maxAllowed: maxSwitches });
 
         if (newCount >= maxSwitches) {
           toast.error(`⚠️ Maximum tab switches (${maxSwitches}) reached! Auto-submitting quiz...`, { duration: 5000 });
-          if (proctorConnected) {
-            await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.TAB_SWITCH_LIMIT_EXCEEDED, { finalCount: newCount });
-          }
+          await logAuditEvent('tab_switch_limit_exceeded', { finalCount: newCount });
           setTimeout(() => handleAutoSubmit(), 2000);
         } else {
           toast.warning(`⚠️ Tab switch detected! Warning ${newCount}/${maxSwitches}`, { duration: 4000 });
@@ -163,7 +172,7 @@ const QuizAttempt = () => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [attempt, tabSwitches, proctorConnected, attemptId]);
+  }, [attempt, tabSwitches, logAuditEvent]);
 
   // ==========================================
   // SECURITY - Prevent copy-paste & Right Click
@@ -174,14 +183,18 @@ const QuizAttempt = () => {
     const preventAction = async (e, eventType, toastMsg) => {
       e.preventDefault();
       toast.error(toastMsg, { duration: 2000 });
-      if (proctorConnected) await proctorAPI.logEvent(attemptId, eventType);
+      await logAuditEvent(eventType);
       return false;
     };
 
-    const copy = (e) => preventAction(e, PROCTOR_EVENTS.COPY_ATTEMPT, "Copy is disabled");
-    const paste = (e) => preventAction(e, PROCTOR_EVENTS.PASTE_ATTEMPT, "Paste is disabled");
-    const cut = (e) => preventAction(e, null, "Cut is disabled");
-    const rightClick = (e) => { e.preventDefault(); return false; };
+    const copy = (e) => preventAction(e, 'copy', "Copy is disabled");
+    const paste = (e) => preventAction(e, 'paste', "Paste is disabled");
+    const cut = (e) => preventAction(e, 'cut', "Cut is disabled");
+    const rightClick = (e) => { 
+      e.preventDefault(); 
+      logAuditEvent('context_menu');
+      return false; 
+    };
 
     document.addEventListener("copy", copy);
     document.addEventListener("paste", paste);
@@ -194,7 +207,59 @@ const QuizAttempt = () => {
       document.removeEventListener("cut", cut);
       document.removeEventListener("contextmenu", rightClick);
     };
-  }, [attempt, proctorConnected, attemptId]);
+  }, [attempt, logAuditEvent]);
+
+  // ==========================================
+  // SECURITY - Window focus/blur detection
+  // ==========================================
+  useEffect(() => {
+    const handleBlur = async () => {
+      if (!isAutoSubmittingRef.current) {
+        await logAuditEvent('window_blur');
+        toast.warning("⚠️ Window lost focus", { duration: 2000 });
+      }
+    };
+
+    const handleFocus = async () => {
+      if (!isAutoSubmittingRef.current) {
+        await logAuditEvent('window_focus');
+      }
+    };
+
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [logAuditEvent]);
+
+  // ==========================================
+  // SECURITY - Keyboard shortcuts detection
+  // ==========================================
+  useEffect(() => {
+    const handleKeyDown = async (e) => {
+      if (isAutoSubmittingRef.current) return;
+
+      // Detect suspicious shortcuts
+      const suspiciousKeys = ['c', 'v', 'x', 'a', 'i', 'j', 'u'];
+      if ((e.ctrlKey || e.metaKey) && suspiciousKeys.includes(e.key.toLowerCase())) {
+        await logAuditEvent('keyboard_shortcut', { key: e.key, ctrlKey: e.ctrlKey, metaKey: e.metaKey });
+        toast.warning(`⚠️ Keyboard shortcut detected: Ctrl+${e.key.toUpperCase()}`, { duration: 2000 });
+      }
+
+      // Detect F12 (dev tools)
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+        await logAuditEvent('dev_tools_attempt');
+        toast.error("⚠️ Developer tools are not allowed!", { duration: 3000 });
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [logAuditEvent]);
 
   // ==========================================
   // SECURITY: Detect dev tools
@@ -205,54 +270,23 @@ const QuizAttempt = () => {
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
       const heightThreshold = window.outerHeight - window.innerHeight > threshold;
 
-      if ((widthThreshold || heightThreshold) && proctorConnected && !isAutoSubmittingRef.current) {
-        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.DEV_TOOLS_OPEN);
+      if ((widthThreshold || heightThreshold) && !isAutoSubmittingRef.current) {
+        await logAuditEvent('dev_tools_detected');
         toast.error("⚠️ Developer tools detected! This has been logged.", { duration: 5000 });
       }
     };
     const interval = setInterval(detectDevTools, 1000);
     return () => clearInterval(interval);
-  }, [proctorConnected, attemptId]);
+  }, [logAuditEvent]);
 
   // ==========================================
-  // Initialize Proctoring Socket
+  // SECURITY: Log attempt start
   // ==========================================
   useEffect(() => {
-    const initProctoring = async () => {
-      if (!attempt || !attemptId) return;
-      try {
-        const tokenData = await proctorAPI.generateToken(attemptId);
-        proctorTokenRef.current = tokenData;
-        await socketService.connect(tokenData.token);
-        await socketService.joinProctorRoom(attemptId, tokenData.token, tokenData.nonce);
-        setProctorConnected(true);
-        await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_START, { quizId: attempt.quiz._id, startTime: new Date().toISOString() });
-        socketService.onAdminCommand(handleAdminCommand);
-      } catch (error) {
-        // Silenced visual toast to prevent spam when backend socket isn't ready
-        console.warn("Proctoring system offline or not yet configured on the backend.");
-      }
-    };
-
-    if (attempt && !proctorConnected) initProctoring();
-
-    return () => {
-      if (proctorConnected) {
-        socketService.leaveProctorRoom(attemptId);
-        socketService.offAdminCommand(handleAdminCommand);
-      }
-    };
-  }, [attempt, attemptId, proctorConnected]);
-
-  const handleAdminCommand = async (data) => {
-    const { cmd, reason } = data;
-    if (cmd === 'terminate') {
-      toast.error(`⚠️ Quiz terminated by admin. Reason: ${reason || 'Violation detected'}`, { duration: 10000 });
-      await handleAutoSubmit();
-    } else if (cmd === 'warn') {
-      toast.warning(`⚠️ Warning from admin: ${reason || 'Please follow rules'}`, { duration: 8000 });
+    if (attempt && attemptId) {
+      logAuditEvent('quiz_start', { quizId: attempt.quiz._id, startTime: new Date().toISOString() });
     }
-  };
+  }, [attempt, attemptId, logAuditEvent]);
 
   // ==========================================
   // Auto-save & Data Fetching
@@ -359,9 +393,9 @@ const QuizAttempt = () => {
     isAutoSubmittingRef.current = true;
     if (timerRef.current) clearInterval(timerRef.current);
     if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
-    if (proctorConnected) {
-      await proctorAPI.logEvent(attemptId, PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT, { reason: 'time_up_or_violation', timestamp: new Date().toISOString() });
-    }
+    
+    await logAuditEvent('quiz_auto_submit', { reason: 'time_up_or_violation' });
+    
     toast.error("⏰ Time's up! Auto-submitting...", { duration: 5000 });
     await submitQuiz(true);
   };
@@ -376,9 +410,7 @@ const QuizAttempt = () => {
         questionId, answer, clientTimestamp: new Date().toISOString()
       }));
 
-      if (proctorConnected) {
-        await proctorAPI.logEvent(attemptId, isAutoSubmit ? PROCTOR_EVENTS.ATTEMPT_AUTO_SUBMIT : PROCTOR_EVENTS.ATTEMPT_SUBMIT, { answerCount: formattedAnswers.length });
-      }
+      await logAuditEvent(isAutoSubmit ? 'quiz_auto_submit' : 'quiz_submit', { answerCount: formattedAnswers.length });
 
       const res = await quizzesAPI.submit(attemptId, {
         answers: formattedAnswers,
@@ -391,10 +423,6 @@ const QuizAttempt = () => {
       if (res.success) {
         if (document.fullscreenElement) await document.exitFullscreen().catch(() => { });
         if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
-        if (proctorConnected) {
-          socketService.leaveProctorRoom(attemptId);
-          socketService.disconnect();
-        }
         toast.success("✅ Quiz submitted successfully!");
         navigate("/student/results");
       } else {
@@ -424,7 +452,35 @@ const QuizAttempt = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // --- Render Helpers ---
+  // Render Grid Function (used in both desktop sidebar and mobile drawer)
+  const renderQuestionGrid = () => (
+    <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 gap-2 sm:gap-3">
+      {attempt.selectedQuestions.map((q, idx) => {
+        const isAnswered = answers[q.question?._id] !== undefined;
+        const isCurrent = idx === currentQuestionIndex;
+
+        let btnStyle = "bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-black";
+        if (isAnswered) btnStyle = "bg-[#0A0A0A] border-[#0A0A0A] text-white";
+        if (isCurrent) btnStyle = "bg-yellow-400 border-yellow-400 text-black shadow-md ring-2 ring-yellow-400/30";
+
+        return (
+          <button
+            key={q.question?._id || idx}
+            onClick={() => {
+              setCurrentQuestionIndex(idx);
+              setShowMobileGrid(false);
+            }}
+            disabled={isAutoSubmittingRef.current}
+            className={`w-full aspect-square rounded-xl text-sm font-bold border-2 ${btnStyle} transition-all flex items-center justify-center`}
+          >
+            {idx + 1}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // --- Main Render ---
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -453,34 +509,6 @@ const QuizAttempt = () => {
   const totalQuestions = attempt.selectedQuestions.length;
   const answeredCount = Object.keys(answers).length;
   const hasCurrentAnswer = answers[currentQuestion.question._id] !== undefined;
-
-  // Render Grid Function (used in both desktop sidebar and mobile drawer)
-  const renderQuestionGrid = () => (
-    <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 gap-2 sm:gap-3">
-      {attempt.selectedQuestions.map((q, idx) => {
-        const isAnswered = answers[q.question?._id] !== undefined;
-        const isCurrent = idx === currentQuestionIndex;
-
-        let btnStyle = "bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-black";
-        if (isAnswered) btnStyle = "bg-[#0A0A0A] border-[#0A0A0A] text-white";
-        if (isCurrent) btnStyle = "bg-yellow-400 border-yellow-400 text-black shadow-md ring-2 ring-yellow-400/30";
-
-        return (
-          <button
-            key={q.question?._id || idx}
-            onClick={() => {
-              setCurrentQuestionIndex(idx);
-              setShowMobileGrid(false);
-            }}
-            disabled={isAutoSubmittingRef.current}
-            className={`w-full aspect-square rounded-xl text-sm font-bold border-2 ${btnStyle} transition-all flex items-center justify-center`}
-          >
-            {idx + 1}
-          </button>
-        );
-      })}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans selection:bg-yellow-200 relative">
@@ -518,15 +546,6 @@ const QuizAttempt = () => {
               <span>Q {currentQuestionIndex + 1} of {totalQuestions}</span>
               <span className="w-1 h-1 rounded-full bg-gray-700 hidden sm:block"></span>
               <span className="hidden sm:block text-gray-300">Answered: {answeredCount}</span>
-
-              {proctorConnected && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-gray-700 hidden sm:block"></span>
-                  <span className="flex items-center gap-1 sm:gap-1.5 text-emerald-400 bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 rounded-md border border-emerald-500/20">
-                    <ShieldCheck size={12} /> <span className="hidden sm:inline">Proctored</span>
-                  </span>
-                </>
-              )}
             </div>
           </div>
 
@@ -553,7 +572,7 @@ const QuizAttempt = () => {
         {(tabSwitches > 0 || (!isFullScreen && attempt.quiz.antiCheatSettings?.enableFullScreen && !needsFullscreenInteraction)) && (
           <div className="bg-red-500 text-white px-4 py-2 flex flex-col sm:flex-row gap-2 sm:gap-6 text-[10px] sm:text-xs font-bold items-center justify-center shadow-inner text-center">
             {tabSwitches > 0 && (
-              <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Tab Switches: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 2}</span>
+              <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Tab Switches: {tabSwitches}/{attempt.quiz.antiCheatSettings?.maxTabSwitches || 5}</span>
             )}
             {!isFullScreen && attempt.quiz.antiCheatSettings?.enableFullScreen && !needsFullscreenInteraction && (
               <span className="flex items-center gap-1.5"><MonitorOff size={14} /> Fullscreen Required - Press F11 or click to enable</span>

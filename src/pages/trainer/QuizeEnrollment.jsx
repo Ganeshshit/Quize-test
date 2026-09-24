@@ -1,11 +1,11 @@
 // src/pages/trainer/QuizEnrollment.jsx
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import {
   Users, UserPlus, UserMinus, Filter, Search,
   CheckSquare, Square, AlertCircle, TrendingUp,
   ArrowLeft, Loader2, ChevronLeft, ChevronRight,
-  BookOpen
+  CheckCircle, AlertTriangle, X, RefreshCw
 } from 'lucide-react';
 import { enrollmentAPI } from '../../api/enrollment.api';
 import { quizzesAPI } from '../../api/quizzes.api';
@@ -13,7 +13,6 @@ import TrainerLayout from '../../components/Layout/TrainerLayout';
 
 const QuizEnrollment = () => {
   const { quizId } = useParams();
-  const navigate = useNavigate();
 
   // State
   const [quiz, setQuiz] = useState(null);
@@ -23,8 +22,13 @@ const QuizEnrollment = () => {
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [busyId, setBusyId] = useState(null); // single-row action in flight
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [toast, setToast] = useState(null); // { type, message }
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, confirmLabel, danger, onConfirm }
 
   // Filters
+  const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState({
     search: '',
     semester: '',
@@ -47,12 +51,29 @@ const QuizEnrollment = () => {
   useEffect(() => {
     loadQuizData();
     loadStatistics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
 
   // Load students when tab or filters change
   useEffect(() => {
     loadStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, filters]);
+
+  // debounce search -> filters.search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFilters((f) => (f.search === searchInput ? f : { ...f, search: searchInput, page: 1 }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const loadQuizData = async () => {
     try {
@@ -90,17 +111,23 @@ const QuizEnrollment = () => {
       let response;
       if (activeTab === 'enrolled') {
         response = await enrollmentAPI.getEnrolledStudents(quizId, params);
-        setStudents(response.data.map(e => ({
+        const enrolledData = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.students || []);
+        setStudents(enrolledData.map(e => ({
           ...e.student,
           enrolledAt: e.enrolledAt,
           attempts: e.attempts
         })));
       } else {
         response = await enrollmentAPI.getNotEnrolledStudents(quizId, params);
-        setStudents(response.data);
+        const studentsData = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.students || []);
+        setStudents(studentsData);
       }
 
-      setPagination(response.pagination);
+      setPagination(response.pagination || response.data?.pagination || {});
     } catch (err) {
       setError('Failed to load students');
       console.error(err);
@@ -109,33 +136,55 @@ const QuizEnrollment = () => {
     }
   };
 
+  const refreshAll = async () => {
+    await Promise.all([loadStudents(), loadStatistics()]);
+  };
+
   const handleEnrollSingle = async (studentId) => {
+    setBusyId(studentId);
     try {
       await enrollmentAPI.enrollSingle(quizId, studentId);
-      loadStudents();
-      loadStatistics();
+      await refreshAll();
+      setToast({ type: 'success', message: 'Student enrolled.' });
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to enroll student');
+      setToast({ type: 'error', message: err.response?.data?.error || 'Failed to enroll student.' });
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleEnrollMultiple = async () => {
     if (selectedStudents.length === 0) {
-      alert('Please select students to enroll');
+      setToast({ type: 'error', message: 'Select at least one student to enroll.' });
       return;
     }
-
+    setBulkBusy(true);
     try {
       await enrollmentAPI.enrollMultiple(quizId, selectedStudents);
-      loadStudents();
-      loadStatistics();
+      await refreshAll();
+      setToast({ type: 'success', message: `${selectedStudents.length} student(s) enrolled.` });
       setSelectedStudents([]);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to enroll students');
+      setToast({ type: 'error', message: err.response?.data?.error || 'Failed to enroll students.' });
+    } finally {
+      setBulkBusy(false);
     }
   };
 
-  const handleEnrollByCriteria = async () => {
+  const runEnrollByCriteria = async (criteria) => {
+    setBulkBusy(true);
+    try {
+      await enrollmentAPI.enrollByCriteria(quizId, criteria);
+      await refreshAll();
+      setToast({ type: 'success', message: 'Students enrolled by criteria.' });
+    } catch (err) {
+      setToast({ type: 'error', message: err.response?.data?.error || 'Failed to enroll students.' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleEnrollByCriteria = () => {
     const criteria = {};
     if (filters.semester) criteria.semester = parseInt(filters.semester);
     if (filters.department) criteria.department = filters.department;
@@ -143,55 +192,72 @@ const QuizEnrollment = () => {
     if (filters.registeredTo) criteria.registeredTo = filters.registeredTo;
 
     if (Object.keys(criteria).length === 0) {
-      const confirmAll = window.confirm('No filters applied. Enroll ALL students?');
-      if (!confirmAll) return;
-      criteria.enrollAll = true;
-    }
-
-    try {
-      await enrollmentAPI.enrollByCriteria(quizId, criteria);
-      loadStudents();
-      loadStatistics();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to enroll students');
-    }
-  };
-
-  const handleUnenrollSingle = async (studentId) => {
-    if (!window.confirm('Are you sure you want to unenroll this student?')) return;
-
-    try {
-      await enrollmentAPI.unenrollSingle(quizId, studentId);
-      loadStudents();
-      loadStatistics();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to unenroll student');
-    }
-  };
-
-  const handleUnenrollMultiple = async () => {
-    if (selectedStudents.length === 0) {
-      alert('Please select students to unenroll');
+      setConfirmDialog({
+        title: 'Enroll all students?',
+        message: 'No filters are applied, so this will enroll every not-yet-enrolled student in the quiz.',
+        confirmLabel: 'Enroll All',
+        danger: false,
+        onConfirm: () => runEnrollByCriteria({ enrollAll: true }),
+      });
       return;
     }
 
-    if (!window.confirm(`Unenroll ${selectedStudents.length} students?`)) return;
+    runEnrollByCriteria(criteria);
+  };
 
-    try {
-      await enrollmentAPI.unenrollMultiple(quizId, selectedStudents);
-      loadStudents();
-      loadStatistics();
-      setSelectedStudents([]);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to unenroll students');
+  const handleUnenrollSingle = (studentId, studentName) => {
+    setConfirmDialog({
+      title: 'Unenroll this student?',
+      message: `${studentName || 'This student'} will lose access to the quiz. This can be reversed by re-enrolling them later.`,
+      confirmLabel: 'Unenroll',
+      danger: true,
+      onConfirm: async () => {
+        setBusyId(studentId);
+        try {
+          await enrollmentAPI.unenrollSingle(quizId, studentId);
+          await refreshAll();
+          setToast({ type: 'success', message: 'Student unenrolled.' });
+        } catch (err) {
+          setToast({ type: 'error', message: err.response?.data?.error || 'Failed to unenroll student.' });
+        } finally {
+          setBusyId(null);
+        }
+      },
+    });
+  };
+
+  const handleUnenrollMultiple = () => {
+    if (selectedStudents.length === 0) {
+      setToast({ type: 'error', message: 'Select at least one student to unenroll.' });
+      return;
     }
+    setConfirmDialog({
+      title: `Unenroll ${selectedStudents.length} student(s)?`,
+      message: 'They will lose access to this quiz. This can be reversed by re-enrolling them later.',
+      confirmLabel: 'Unenroll All Selected',
+      danger: true,
+      onConfirm: async () => {
+        setBulkBusy(true);
+        try {
+          await enrollmentAPI.unenrollMultiple(quizId, selectedStudents);
+          await refreshAll();
+          setToast({ type: 'success', message: `${selectedStudents.length} student(s) unenrolled.` });
+          setSelectedStudents([]);
+        } catch (err) {
+          setToast({ type: 'error', message: err.response?.data?.error || 'Failed to unenroll students.' });
+        } finally {
+          setBulkBusy(false);
+        }
+      },
+    });
   };
 
   const handleSelectAll = () => {
-    if (selectedStudents.length === students.length) {
+    const studentsLength = Array.isArray(students) ? students.length : 0;
+    if (selectedStudents.length === studentsLength) {
       setSelectedStudents([]);
     } else {
-      setSelectedStudents(students.map(s => s._id));
+      setSelectedStudents(Array.isArray(students) ? students.map(s => s._id) : []);
     }
   };
 
@@ -203,6 +269,13 @@ const QuizEnrollment = () => {
     );
   };
 
+  const hasActiveFilters = filters.search || filters.semester || filters.department || filters.registeredFrom || filters.registeredTo;
+
+  const resetFilters = () => {
+    setSearchInput('');
+    setFilters({ search: '', semester: '', department: '', registeredFrom: '', registeredTo: '', page: 1, limit: 20 });
+  };
+
   const formatDate = (date) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
@@ -211,6 +284,25 @@ const QuizEnrollment = () => {
       day: 'numeric'
     });
   };
+
+  // Condensed page list: 1 ... p-1 p p+1 ... last
+  const pageNumbers = useMemo(() => {
+    const total = pagination.pages || 0;
+    const current = pagination.page || 1;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+    const pages = new Set([1, total, current, current - 1, current + 1]);
+    const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+
+    const result = [];
+    let prev = 0;
+    for (const p of sorted) {
+      if (prev && p - prev > 1) result.push('…');
+      result.push(p);
+      prev = p;
+    }
+    return result;
+  }, [pagination.pages, pagination.page]);
 
   // Premium Input Classes
   const inputClasses = "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all";
@@ -226,24 +318,26 @@ const QuizEnrollment = () => {
     );
   }
 
+  const allSelected = selectedStudents.length === (Array.isArray(students) ? students.length : 0) && students.length > 0;
+
   return (
     <TrainerLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto w-full font-sans selection:bg-yellow-200">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
+          <div className="min-w-0">
             <Link
               to={`/trainer/quizzes/${quizId}/details`}
-              className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-black uppercase tracking-widest mb-3 transition-colors"
+              className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-black uppercase tracking-widest mb-3 transition-colors"
             >
               <ArrowLeft size={14} /> Back to Quiz Details
             </Link>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-              <div className="p-2 bg-[#0A0A0A] rounded-lg text-white shadow-sm">
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3 truncate">
+              <div className="p-2 bg-[#0A0A0A] rounded-lg text-white shadow-sm flex-shrink-0">
                 <Users size={24} className="text-yellow-400" />
               </div>
-              {quiz.title}
+              <span className="truncate">{quiz.title}</span>
             </h1>
             <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2">
               Manage Student Enrollments
@@ -319,8 +413,8 @@ const QuizEnrollment = () => {
                 <input
                   type="text"
                   placeholder="Search by name..."
-                  value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className={`${inputClasses} pl-11`}
                 />
               </div>
@@ -356,15 +450,24 @@ const QuizEnrollment = () => {
                 className={inputClasses}
               />
             </div>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black transition-colors"
+              >
+                <X size={13} /> Clear all filters
+              </button>
+            )}
           </div>
 
           {/* Actions Row */}
           <div className="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-gray-100">
             <button
               onClick={handleSelectAll}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-sm font-bold text-gray-700 transition-colors"
+              disabled={students.length === 0}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-sm font-bold text-gray-700 transition-colors disabled:opacity-50"
             >
-              {selectedStudents.length === students.length && students.length > 0 ? (
+              {allSelected ? (
                 <CheckSquare size={18} className="text-black" />
               ) : (
                 <Square size={18} className="text-gray-400" />
@@ -377,33 +480,36 @@ const QuizEnrollment = () => {
                 <>
                   <button
                     onClick={handleEnrollByCriteria}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:border-gray-900 text-sm font-bold text-gray-700 hover:text-black transition-colors"
+                    disabled={bulkBusy}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:border-gray-900 text-sm font-bold text-gray-700 hover:text-black transition-colors disabled:opacity-50"
                   >
                     <Filter size={18} /> Enroll via Filters
                   </button>
                   <button
                     onClick={handleEnrollMultiple}
-                    disabled={selectedStudents.length === 0}
+                    disabled={selectedStudents.length === 0 || bulkBusy}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0A0A0A] hover:bg-black text-white text-sm font-bold rounded-xl shadow-md transition-all disabled:opacity-50 disabled:hover:bg-[#0A0A0A]"
                   >
-                    <UserPlus size={18} /> Enroll Selected
+                    {bulkBusy ? <RefreshCw size={18} className="animate-spin" /> : <UserPlus size={18} />}
+                    Enroll Selected
                   </button>
                 </>
               )}
               {activeTab === 'enrolled' && (
                 <button
                   onClick={handleUnenrollMultiple}
-                  disabled={selectedStudents.length === 0}
+                  disabled={selectedStudents.length === 0 || bulkBusy}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                 >
-                  <UserMinus size={18} /> Unenroll Selected
+                  {bulkBusy ? <RefreshCw size={18} className="animate-spin" /> : <UserMinus size={18} />}
+                  Unenroll Selected
                 </button>
               )}
             </div>
           </div>
 
-          {/* Table Area */}
-          <div className="overflow-x-auto">
+          {/* DESKTOP TABLE */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
@@ -423,19 +529,20 @@ const QuizEnrollment = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center">
-                      <Loader2 size={32} className="text-yellow-400 animate-spin mx-auto mb-3" />
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Records...</p>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={5} className="px-6 py-4">
+                        <div className="h-4 bg-gray-100 rounded w-full animate-pulse" />
+                      </td>
+                    </tr>
+                  ))
                 ) : error ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-sm font-bold text-red-600">
                       {error}
                     </td>
                   </tr>
-                ) : students.length === 0 ? (
+                ) : (Array.isArray(students) ? students.length : 0) === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center">
                       <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
@@ -444,7 +551,7 @@ const QuizEnrollment = () => {
                     </td>
                   </tr>
                 ) : (
-                  students.map((student) => (
+                  Array.isArray(students) && students.map((student) => (
                     <tr key={student._id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-center">
                         <input
@@ -492,15 +599,19 @@ const QuizEnrollment = () => {
                         {activeTab === 'not-enrolled' ? (
                           <button
                             onClick={() => handleEnrollSingle(student._id)}
-                            className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
+                            disabled={busyId === student._id}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black uppercase tracking-widest rounded-lg transition-colors disabled:opacity-60"
                           >
+                            {busyId === student._id && <RefreshCw size={12} className="animate-spin" />}
                             Enroll
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleUnenrollSingle(student._id)}
-                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
+                            onClick={() => handleUnenrollSingle(student._id, student.name)}
+                            disabled={busyId === student._id}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-black uppercase tracking-widest rounded-lg transition-colors disabled:opacity-60"
                           >
+                            {busyId === student._id && <RefreshCw size={12} className="animate-spin" />}
                             Unenroll
                           </button>
                         )}
@@ -510,6 +621,71 @@ const QuizEnrollment = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* MOBILE CARDS */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-5">
+                  <div className="h-4 bg-gray-100 rounded w-2/3 mb-2 animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
+                </div>
+              ))
+            ) : error ? (
+              <div className="p-8 text-center text-sm font-bold text-red-600">{error}</div>
+            ) : students.length === 0 ? (
+              <div className="p-8 text-center text-sm font-bold text-gray-500 uppercase tracking-widest">
+                {activeTab === 'enrolled' ? 'No enrolled students found' : 'No students available for enrollment'}
+              </div>
+            ) : (
+              students.map((student) => (
+                <div key={student._id} className="p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedStudents.includes(student._id)}
+                      onChange={() => handleSelectStudent(student._id)}
+                      className="w-4 h-4 mt-1 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500 cursor-pointer flex-shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-sm text-gray-900 truncate">{student.name}</div>
+                      <div className="text-xs font-medium text-gray-500 truncate">{student.email}</div>
+                      <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                        Roll: {student.rollNo || 'N/A'} • Sem {student.semester || 'N/A'} • {student.department || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pl-7">
+                    <span className="text-xs font-bold text-gray-500">
+                      {activeTab === 'enrolled'
+                        ? `Enrolled ${formatDate(student.enrolledAt)}`
+                        : `Registered ${formatDate(student.createdAt)}`}
+                    </span>
+                    {activeTab === 'not-enrolled' ? (
+                      <button
+                        onClick={() => handleEnrollSingle(student._id)}
+                        disabled={busyId === student._id}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-black uppercase tracking-widest rounded-lg transition-colors disabled:opacity-60"
+                      >
+                        {busyId === student._id && <RefreshCw size={12} className="animate-spin" />}
+                        Enroll
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleUnenrollSingle(student._id, student.name)}
+                        disabled={busyId === student._id}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-black uppercase tracking-widest rounded-lg transition-colors disabled:opacity-60"
+                      >
+                        {busyId === student._id && <RefreshCw size={12} className="animate-spin" />}
+                        Unenroll
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Pagination */}
@@ -529,18 +705,24 @@ const QuizEnrollment = () => {
                   <ChevronLeft size={18} />
                 </button>
                 <div className="flex items-center gap-1">
-                  {[...Array(pagination.pages)].map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setFilters({ ...filters, page: i + 1 })}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${pagination.page === i + 1
-                        ? 'bg-[#0A0A0A] text-white'
-                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                  {pageNumbers.map((p, i) =>
+                    p === '…' ? (
+                      <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-xs font-bold text-gray-400">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setFilters({ ...filters, page: p })}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${pagination.page === p
+                          ? 'bg-[#0A0A0A] text-white'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
                 </div>
                 <button
                   onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
@@ -554,6 +736,66 @@ const QuizEnrollment = () => {
           )}
         </div>
       </div>
+
+      {/* CONFIRM MODAL */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-xl max-w-sm w-full p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`p-3 rounded-2xl w-fit mb-4 ${confirmDialog.danger ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-700'}`}>
+              <AlertTriangle size={28} />
+            </div>
+            <h3 className="text-lg font-black text-gray-900 mb-2">{confirmDialog.title}</h3>
+            <p className="text-sm font-medium text-gray-500 mb-6">{confirmDialog.message}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const action = confirmDialog.onConfirm;
+                  setConfirmDialog(null);
+                  await action();
+                }}
+                className={`flex-1 px-4 py-3 rounded-xl text-white font-bold text-sm transition-colors ${confirmDialog.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-[#0A0A0A] hover:bg-black'
+                  }`}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div
+            className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-lg border font-bold text-sm ${toast.type === 'success'
+              ? 'bg-[#0A0A0A] text-white border-black'
+              : 'bg-red-50 text-red-700 border-red-200'
+              }`}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle size={18} className="text-yellow-400 flex-shrink-0" />
+            ) : (
+              <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+            )}
+            {toast.message}
+            <button onClick={() => setToast(null)} className="ml-2 opacity-70 hover:opacity-100">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </TrainerLayout>
   );
 };

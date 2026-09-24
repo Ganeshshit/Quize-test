@@ -121,10 +121,30 @@ const CreateQuiz = () => {
         questionsAPI.getAll()
       ]);
 
-      setSubjects(subjectRes.data || []);
-      setQuestions(questionRes.data || []);
+      console.log('API Responses:', { subjectRes, questionRes });
+
+      // Handle different response structures
+      // The API returns { success: true, data: { subjects: [...] } }
+      const subjectsData = Array.isArray(subjectRes.data?.subjects)
+        ? subjectRes.data.subjects
+        : (Array.isArray(subjectRes.data) ? subjectRes.data : (Array.isArray(subjectRes) ? subjectRes : []));
+
+      const questionsData = Array.isArray(questionRes.data)
+        ? questionRes.data
+        : (Array.isArray(questionRes) ? questionRes : []);
+
+      setSubjects(subjectsData);
+      setQuestions(questionsData);
+
+      console.log('Loaded data:', {
+        subjectsCount: subjectsData.length,
+        questionsCount: questionsData.length,
+        subjects: subjectsData
+      });
     } catch (err) {
       console.log("Failed to load data", err);
+      setSubjects([]);
+      setQuestions([]);
     }
   };
 

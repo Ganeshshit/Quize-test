@@ -2,7 +2,7 @@
 
 // ========== API Configuration ==========
 export const API_CONFIG = {
-    BASE_URL: 'http://localhost:5000/api/v1',
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1',
     TIMEOUT: 15000,
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000,
@@ -204,6 +204,7 @@ export const ROUTES = {
     TRAINER_QUESTIONS: '/trainer/questions',
     TRAINER_QUESTION_CREATE: '/trainer/questions/create',
     TRAINER_QUESTION_EDIT: '/trainer/questions/:id/edit',
+    TRAINER_AI_QUESTIONS: '/trainer/questions/ai',
     TRAINER_SUBJECTS: '/trainer/subjects',
     TRAINER_GRADING: '/trainer/grading',
 

@@ -185,7 +185,17 @@ export const useStudentQuizStore = create(
             startQuiz: async (quizId) => {
                 try {
                     set({ loading: true, error: null });
-                    const res = await quizzesAPI.start(quizId);
+                    
+                    // Generate session ID and attempt index
+                    const sessionId = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}`;
+                    const attemptIndex = 1; // Default to first attempt
+                    
+                    const payload = {
+                        sessionId,
+                        attemptIndex
+                    };
+                    
+                    const res = await quizzesAPI.start(quizId, payload);
 
                     set({
                         currentAttempt: res.data,

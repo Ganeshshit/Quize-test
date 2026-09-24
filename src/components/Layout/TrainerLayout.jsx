@@ -5,6 +5,7 @@ import {
     Menu, X, LayoutDashboard, ClipboardList, Plus,
     Database, Eye, LogOut, ShieldCheck
 } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
 
 // --- CONSTANTS ---
 // Hoisted outside the component to prevent recreation on every render
@@ -76,26 +77,27 @@ const QuickStatsWidget = React.memo(({ stats }) => (
 ));
 QuickStatsWidget.displayName = "QuickStatsWidget";
 
+// --- UTILITY FUNCTIONS ---
+const getInitials = (name = '') => {
+    if (!name.trim()) return 'TR';
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2
+        ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+        : parts[0].substring(0, 2).toUpperCase();
+};
+
 // --- MAIN COMPONENT ---
 const TrainerLayout = ({ children }) => {
+    // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-    // --- LOGOUT FUNCTION ---
-    const handleLogout = () => {
-        // Clear all authentication tokens from local storage
-        localStorage.clear();
-        sessionStorage.clear();
-        // Redirect to the login page
-        navigate("/login");
-    };
-
     const [quickStats, setQuickStats] = useState({
         activeQuizzes: 0,
         totalAttempts: 0,
         pendingReviews: 0
     });
+    const { user, logout, isAuthenticated, isLoading } = useAuth();
 
     // Handle scroll locking when mobile menu is open
     useEffect(() => {
@@ -138,6 +140,59 @@ const TrainerLayout = ({ children }) => {
         return location.pathname.includes(path);
     }, [location.pathname]);
 
+    // --- LOGOUT FUNCTION ---
+    const handleLogout = async () => {
+        try {
+            await logout();
+            navigate("/login");
+        } catch (error) {
+            console.error("Logout error:", error);
+            // Fallback: clear storage and redirect
+            localStorage.clear();
+            sessionStorage.clear();
+            navigate("/login");
+        }
+    };
+
+    // Get user display data from auth hook
+    const userName = user?.name || user?.username || user?.fullName || 'Trainer';
+    const userEmail = user?.email || 'trainer@example.com';
+    const userInitials = userName
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+
+    // Show loading state while authentication is initializing
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+                <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+                <div className="text-center">
+                    <p className="text-gray-600 mb-4">Please log in to access this page</p>
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+                    >
+                        Go to Login
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen flex flex-col font-sans bg-[#F8F9FA] selection:bg-yellow-200">
 
@@ -167,11 +222,11 @@ const TrainerLayout = ({ children }) => {
                     {/* 1. PROFILE LINK (Strictly wraps only the text and avatar) */}
                     <Link to="/trainer/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                         <div className="hidden sm:block text-right">
-                            <p className="text-sm font-bold text-white">John Trainer</p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">trainer@example.com</p>
+                            <p className="text-sm font-bold text-white">{userName}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{userEmail}</p>
                         </div>
                         <div className="w-10 h-10 rounded-full bg-yellow-400 text-black flex items-center justify-center font-black shadow-[0_0_15px_rgba(250,204,21,0.2)]">
-                            JT
+                            {userInitials}
                         </div>
                     </Link>
 

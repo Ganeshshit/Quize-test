@@ -10,7 +10,7 @@ export const questionsAPI = {
             const response = await axiosInstance.get('/questions', { params });
             const data = response.data;
 
-            console.log('📥 API Response - Raw data:', JSON.stringify(data, null, 2));
+            // console.log('📥 API Response - Raw data:', JSON.stringify(data, null, 2));
 
             // Handle different response structures
             let questions = [];
@@ -131,5 +131,71 @@ export const questionsAPI = {
     // Get questions by difficulty
     getByDifficulty: async (difficulty, params = {}) => {
         return questionsAPI.getAll({ ...params, difficulty });
+    },
+
+    // AI Question Generation
+    generateAIQuestions: async (questionData) => {
+        try {
+            console.log('📡 API Call - Generating AI questions with data:', questionData);
+            // AI generation can take longer, so use extended timeout (2 minutes)
+            const response = await axiosInstance.post('/questions/ai/generate', questionData, {
+                timeout: 120000 // 2 minutes timeout for AI generation
+            });
+            console.log('📥 AI questions generated:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ Error generating AI questions:', error);
+            throw error;
+        }
+    },
+
+    // Get pending questions for review
+    getPendingQuestions: async (params = {}) => {
+        try {
+            console.log('📡 API Call - Fetching pending questions with params:', params);
+            // Use the correct endpoint - filter by review status instead of /pending
+            const response = await axiosInstance.get('/questions', { 
+                params: { 
+                    ...params, 
+                    isVerified: false,
+                    source: 'ai'
+                } 
+            });
+            console.log('📥 Pending questions response:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ Error fetching pending questions:', error);
+            throw error;
+        }
+    },
+
+    // Approve a question (update isVerified to true)
+    approveQuestion: async (questionId) => {
+        try {
+            console.log('📡 API Call - Approving question:', questionId);
+            const response = await axiosInstance.put(`/questions/${questionId}`, { 
+                isVerified: true,
+                isActive: true 
+            });
+            console.log('📥 Question approved:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ Error approving question:', error);
+            throw error;
+        }
+    },
+
+    // Reject a question (delete the question)
+    rejectQuestion: async (questionId, rejectionReason) => {
+        try {
+            console.log('📡 API Call - Rejecting question:', questionId, 'with reason:', rejectionReason);
+            // Delete the question to reject it
+            const response = await axiosInstance.delete(`/questions/${questionId}`);
+            console.log('📥 Question rejected (deleted):', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ Error rejecting question:', error);
+            throw error;
+        }
     },
 };

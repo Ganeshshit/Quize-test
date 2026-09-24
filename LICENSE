@@ -1,0 +1,270 @@
+# PROPRIETARY COMMERCIAL SOFTWARE LICENSE
+
+**Copyright © 2025–2026 Ganeshshit (CoderGanesh). All Rights Reserved.**
+
+## 1. OWNERSHIP
+
+This Software and all associated intellectual property are and remain the exclusive property of **Ganeshshit (CoderGanesh)** (“Licensor”).
+
+The Software includes, without limitation:
+
+* Source code
+* Object code
+* APIs
+* Software architecture
+* Algorithms
+* Database structures
+* Documentation
+* Designs
+* UI/UX
+* Configuration
+* Scripts
+* Deployment files
+* Technical documentation
+* Modifications and improvements created by the Licensor
+
+The Customer does **not** acquire ownership of the Software by purchasing a license or paying any fees.
+
+All rights not expressly granted under this Agreement are reserved by the Licensor.
+
+---
+
+## 2. LICENSE GRANT
+
+Subject to timely payment of all applicable fees, the Licensor grants the Customer a **limited, non-exclusive, non-transferable, non-sublicensable, revocable license** to use the Software solely for the purposes expressly agreed between the parties.
+
+The license does not constitute a sale, transfer, assignment, or ownership transfer of the Software or its intellectual property.
+
+---
+
+## 3. PAYMENT REQUIRED
+
+The Customer's right to use the Software is conditional upon payment of the applicable license, subscription, service, or usage fees.
+
+No license is granted until the required payment has been received or another written payment arrangement has been expressly agreed upon.
+
+Unless otherwise agreed in writing, payment grants usage rights only for the period for which the applicable fees have been paid.
+
+---
+
+## 4. SUBSCRIPTION / CONTINUING USE
+
+Where the Software is provided on a recurring-payment basis, the Customer's license remains valid only while the applicable subscription or license fees are paid and the Customer complies with this Agreement.
+
+If payment expires, is cancelled, is reversed, or otherwise becomes overdue beyond any applicable grace period, the Licensor may suspend or terminate the Customer's license.
+
+Upon termination, the Customer must immediately stop using the Software except where continued use is expressly permitted in writing.
+
+---
+
+## 5. SOURCE CODE
+
+Unless expressly agreed in a separate written agreement, **source-code ownership and source-code rights are not transferred to the Customer.**
+
+Providing the Customer with access to source code, a private repository, development environment, deployment environment, or source-code files does not constitute a transfer of ownership.
+
+The Customer shall not:
+
+1. Copy the source code;
+2. Publish the source code;
+3. Upload the source code to another repository;
+4. Share the source code with third parties;
+5. Sell or sublicense the source code;
+6. Give the source code to another company or developer;
+7. Use substantial portions of the source code in another product;
+8. Create a competing product using the source code;
+9. Remove copyright or proprietary notices;
+10. Make the source code publicly available.
+
+---
+
+## 6. PROHIBITED USE
+
+Unless expressly authorized in writing by the Licensor, the Customer shall not:
+
+* Resell the Software;
+* Rent or lease the Software;
+* Sublicense the Software;
+* Transfer the Software to another person or organization;
+* Provide the Software to third parties;
+* Operate the Software as a service for unrelated third parties;
+* Create competing software substantially based on the Software;
+* Copy substantial portions of the Software;
+* Circumvent technical restrictions;
+* Attempt to obtain unauthorized access to the Software;
+* Reverse engineer, decompile, or disassemble the Software except to the extent such restriction is prohibited by applicable law;
+* Remove proprietary notices;
+* Use the Software after termination of the license.
+
+---
+
+## 7. AUTHORIZED USERS
+
+The Customer may permit only its authorized employees, contractors, or personnel to access the Software where such access is necessary for the Customer's authorized use.
+
+The Customer is responsible for ensuring that its authorized users comply with this Agreement.
+
+The Customer must not provide access credentials or source code to unauthorized persons.
+
+---
+
+## 8. NO TRANSFER OF INTELLECTUAL PROPERTY
+
+Payment of license fees does not transfer:
+
+* Copyright;
+* Trademark rights;
+* Patent rights;
+* Trade-secret rights;
+* Source-code ownership;
+* Database ownership;
+* Software architecture;
+* Algorithms;
+* Documentation ownership;
+* Other intellectual-property rights.
+
+All such rights remain with the Licensor unless expressly transferred through a separate written agreement signed by the Licensor.
+
+---
+
+## 9. CUSTOMER DATA
+
+The Customer retains ownership of data that it independently provides to or generates through the Software, subject to any separate agreement concerning data processing, hosting, or privacy.
+
+Nothing in this Agreement transfers ownership of Customer data to the Licensor.
+
+---
+
+## 10. CUSTOM DEVELOPMENT
+
+Unless expressly agreed otherwise in writing, customizations, improvements, modifications, reusable components, libraries, frameworks, architecture, tools, and technical solutions developed by the Licensor remain the intellectual property of the Licensor.
+
+A separate written agreement may specify different ownership terms for specifically commissioned work.
+
+---
+
+## 11. CONFIDENTIALITY
+
+The Customer shall keep confidential all non-public information relating to the Software, including source code, credentials, architecture, technical documentation, algorithms, deployment configuration, security mechanisms, and proprietary business information.
+
+The Customer shall not disclose such information to any third party except where disclosure is required by applicable law.
+
+---
+
+## 12. LICENSE TERMINATION
+
+The Licensor may terminate the license if the Customer:
+
+* Fails to make required payments;
+* Violates this Agreement;
+* Distributes or discloses the Software without authorization;
+* Uses the Software outside the permitted scope;
+* Attempts to transfer ownership or licensing rights without authorization;
+* Engages in unauthorized copying or commercialization.
+
+Where applicable law requires notice or an opportunity to cure a breach, the Licensor may provide such notice before termination.
+
+---
+
+## 13. EFFECT OF TERMINATION
+
+Upon termination or expiration of the license, the Customer shall:
+
+1. Immediately cease unauthorized use of the Software;
+2. Stop accessing the Software;
+3. Stop distributing the Software;
+4. Stop using the source code;
+5. Return or destroy confidential materials where required;
+6. Remove unauthorized copies from its systems where legally required.
+
+Termination does not affect rights or obligations that by their nature survive termination, including intellectual-property rights, confidentiality, payment obligations, and remedies for prior breaches.
+
+---
+
+## 14. NO OWNERSHIP BY PAYMENT
+
+Payment for a license, subscription, implementation, customization, support service, or development service does **not** automatically transfer ownership of the Software.
+
+Ownership transfer requires a separate written intellectual-property assignment expressly signed by the Licensor.
+
+---
+
+## 15. COMMERCIAL LICENSE
+
+The Customer's commercial use is permitted only within the scope expressly granted under the applicable license or commercial agreement.
+
+Any use outside that scope requires prior written authorization from the Licensor.
+
+Additional users, installations, domains, organizations, locations, products, or deployments may require additional licensing fees.
+
+---
+
+## 16. AUDIT AND VERIFICATION
+
+Where reasonably necessary to verify compliance with the license, the Licensor may request reasonable information concerning the Customer's use of the Software.
+
+The Customer shall reasonably cooperate with such verification while respecting applicable confidentiality and data-protection requirements.
+
+---
+
+## 17. ENFORCEMENT
+
+Unauthorized copying, distribution, disclosure, commercial exploitation, or use outside the granted license may constitute a breach of this Agreement and may also constitute infringement of applicable intellectual-property rights.
+
+The Licensor reserves all rights and remedies available under applicable law, including the right to seek injunctive relief, damages, recovery of profits where available, costs, and other appropriate remedies.
+
+Nothing in this Agreement limits any rights that cannot legally be waived.
+
+---
+
+## 18. NO WARRANTY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED ON AN “AS IS” AND “AS AVAILABLE” BASIS.
+
+THE LICENSOR DISCLAIMS WARRANTIES EXCEPT TO THE EXTENT EXPRESSLY PROVIDED IN A SEPARATE WRITTEN AGREEMENT.
+
+---
+
+## 19. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSOR SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES ARISING FROM THE USE OF THE SOFTWARE.
+
+Any specific liability limitations should be agreed in the applicable commercial agreement and interpreted subject to mandatory applicable law.
+
+---
+
+## 20. NO IMPLIED LICENSE
+
+No rights are granted by implication, estoppel, exhaustion, or otherwise.
+
+Only rights expressly granted in writing are granted to the Customer.
+
+---
+
+## 21. ENTIRE AGREEMENT
+
+The applicable commercial agreement, order form, subscription agreement, and this license constitute the agreement governing the Customer's use of the Software, subject to any expressly agreed precedence between those documents.
+
+Any amendment must be made in writing and agreed by the parties.
+
+---
+
+## 22. CONTACT
+
+**Licensor:** Ganeshshit (CoderGanesh)
+
+**Email:** [ganesh@techieganesh.tech](mailto:ganesh@techieganesh.tech)
+
+**Website:** https://techieganesh.tech/
+
+**GitHub:** https://github.com/Ganeshshit
+
+---
+
+# ALL RIGHTS RESERVED
+
+**Copyright © 2025–2026 Ganeshshit (CoderGanesh).**
+
+No ownership of the Software is transferred to the Customer unless expressly stated in a separate written intellectual-property assignment.
+
+A paid license grants only the specific usage rights expressly agreed between the parties.
